@@ -17,54 +17,66 @@ Value empty_value;
     yylval = make_node_terminal(name, NO_VALUE, empty_value); \
     return name;
 
+#define MAKE_STR_NODE(name) Value value; \
+    value.str_value = strdup(yytext); \
+    yylval = make_node_terminal(name, STR_VALUE, value); \
+    return name;
+
+#define MAKE_INT_NODE(name) Value value; \
+    value.int_value = strtol(yytext, NULL, 0); \
+    yylval = make_node_terminal(name, INT_VALUE, value); \
+    return name;
+
+#define MAKE_FLOAT_NODE(name) Value value; \
+    value.float_value = atof(yytext); \
+    yylval = make_node_terminal(name, FLOAT_VALUE, value); \
+    return name;
+
 %}
 
 D   [0-9]
 L   [a-zA-Z_]
 H   [a-fA-F0-9]
+E   [Ee][+-]?{D}+
 S   [+-]
 
 %%
-{S}?0[0-7]+ {
-    /* oct integer */
-    //yylval.int_value = strtol(yytext, NULL, 0);
-    Value value;
-    value.int_value = strtol(yytext, NULL, 0);
-    yylval = make_node_terminal(INT, INT_VALUE, value);
-    return INT;
+"//" {
+    char c;
+    //while (c != '\n') c = input();
+    while ((c = input()) != '\n' && c);
+    unput(c);
 }
-{S}?0[xX]{H}+ {
-    /* hex integer */
-    //yylval.int_value = strtol(yytext, NULL, 0);
-    Value value;
-    value.int_value = strtol(yytext, NULL, 0);
-    yylval = make_node_terminal(INT, INT_VALUE, value);
-    return INT;
+"/*" {
+    char c1, c2 = input();
+    do {
+        if (c2 == '\n') yylineno++;
+        c1 = c2;
+        c2 = input();
+    } while (c1 != '*' && c1 || c2 != '/' && c2);
 }
-{S}?{D}+ {
-    /* dec integer */
-    //yylval.int_value = atoi(yytext);
-    Value value;
-    value.int_value = atoi(yytext);
-    yylval = make_node_terminal(INT, INT_VALUE, value);
-    return INT;
-}
-{S}?({D}*\.?{D}+|{D}+\.) {
-    //yylval.float_value = atof(yytext);
-    Value value;
-    value.float_value = atof(yytext);
-    yylval = make_node_terminal(FLOAT, FLOAT_VALUE, value);
-    return FLOAT;
-}
+
+struct { MAKE_NODE(STRUCT) }
+return { MAKE_NODE(RETURN) }
+if { MAKE_NODE(IF) }
+else { MAKE_NODE(ELSE) }
+while { MAKE_NODE(WHILE) }
+(int)|(float) { MAKE_STR_NODE(TYPE) }
+
+{L}({D}|{L})* { MAKE_STR_NODE(ID) }
+
+{S}?0[0-7]+ { MAKE_INT_NODE(INT) }
+{S}?0[xX]{H}+ { MAKE_INT_NODE(INT) }
+{S}?([1-9]{D}*)|0 { MAKE_INT_NODE(INT) }
+
+{D}+{E} { MAKE_FLOAT_NODE(FLOAT) }
+{D}*"."{D}+({E})? { MAKE_FLOAT_NODE(FLOAT) }
+{D}+"."{D}*({E})? { MAKE_FLOAT_NODE(FLOAT) }
+
 ";" { MAKE_NODE(SEMI) }
 "," { MAKE_NODE(COMMA) }
 "=" { MAKE_NODE(ASSIGNOP) }
-(>=)|(<=)|(==)|(!=)|<|> {
-    Value value;
-    value.str_value = strdup(yytext);
-    yylval = make_node_terminal(RELOP, STR_VALUE, value);
-    return RELOP;
-}
+(>=)|(<=)|(==)|(!=)|<|> { MAKE_STR_NODE(RELOP) }
 "+" { MAKE_NODE(PLUS) }
 "-" { MAKE_NODE(MINUS) }
 "*" { MAKE_NODE(STAR) }
@@ -73,32 +85,15 @@ S   [+-]
 "||" { MAKE_NODE(OR) }
 "." { MAKE_NODE(DOT) }
 "!" { MAKE_NODE(NOT) }
-(int)|(float) {
-    Value value;
-    value.str_value = strdup(yytext);
-    yylval = make_node_terminal(TYPE, STR_VALUE, value);
-    return TYPE;
-}
 "(" { MAKE_NODE(LP) }
 ")" { MAKE_NODE(RP) }
 "[" { MAKE_NODE(LB) }
 "]" { MAKE_NODE(RB) }
 "{" { MAKE_NODE(LC) }
 "}" { MAKE_NODE(RC) }
-struct { MAKE_NODE(STRUCT) }
-return { MAKE_NODE(RETURN) }
-if { MAKE_NODE(IF) }
-else { MAKE_NODE(ELSE) }
-while { MAKE_NODE(WHILE) }
-{L}({D}|{L})* {
-    Value value;
-    value.str_value = strdup(yytext);
-    yylval = make_node_terminal(ID, STR_VALUE, value);
-    return ID;
-}
 
 \n { yycolumn = 1; yylineno++; }
-[ \t] { }
+[ \t\v\f] { }
 . {
     static char msg_buf[1024];
     sprintf(msg_buf, "mysterious character \"%s\"", yytext);
