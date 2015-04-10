@@ -5,6 +5,8 @@
 extern int yylineno;
 %}
 %locations
+%define parse.lac full
+%define parse.error verbose
 
 /* Level 8 */
 %right ASSIGNOP

@@ -97,17 +97,16 @@ while { MAKE_NODE(WHILE) }
     return ID;
 }
 
-\n { yycolumn = 1; }
+\n { yycolumn = 1; yylineno++; }
 [ \t] { }
 . {
     static char msg_buf[1024];
-    sprintf(msg_buf, "Mysterious character \"%s\"", yytext);
+    sprintf(msg_buf, "mysterious character \"%s\"", yytext);
     yyerror(msg_buf);
 }
 %%
 extern int no_error;
 yyerror(char* msg) {
     no_error = 0;
-    fprintf(stderr, "Error type A at Line %d: %s\n", \
-        yylineno, msg);
+    fprintf(stderr, "Error at Line %d: %s\n", yylineno, msg);
 }
