@@ -5,7 +5,6 @@
 extern int yylineno;
 %}
 %locations
-%define parse.lac full
 %define parse.error verbose
 
 /* Level 8 */
@@ -70,6 +69,7 @@ ExtDef: Specifier ExtDecList SEMI {
     $$ = make_node_nonterminal(ExtDef, yylineno);
     add_children($$, 3, $1, $2, $3);
     }
+    | error SEMI { yyerrok; }
     ;
 ExtDecList: VarDec {
     $$ = make_node_nonterminal(ExtDecList, yylineno);
@@ -151,6 +151,7 @@ CompSt: LC DefList StmtList RC {
     $$ = make_node_nonterminal(CompSt, yylineno);
     add_children($$, 4, $1, $2, $3, $4);
     }
+    | error RC { yyerrok; }
     ;
 StmtList: Stmt StmtList {
     $$ = make_node_nonterminal(StmtList, yylineno);
@@ -182,6 +183,7 @@ Stmt: Exp SEMI {
     $$ = make_node_nonterminal(Stmt, yylineno);
     add_children($$, 5, $1, $2, $3, $4, $5);
     }
+    | error SEMI { yyerrok; }
     ;
 
 /* Local Definitions */
@@ -195,6 +197,7 @@ Def: Specifier DecList SEMI {
     $$ = make_node_nonterminal(Def, yylineno);
     add_children($$, 3, $1, $2, $3);
     }
+    | error SEMI { yyerrok; }
     ;
 DecList: Dec {
     $$ = make_node_nonterminal(DecList, yylineno);
@@ -288,6 +291,7 @@ Exp: Exp ASSIGNOP Exp {
     $$ = make_node_nonterminal(Exp, yylineno);
     add_children($$, 1, $1);
     }
+    | error RP { yyerrok; }
     ;
 Args: Exp COMMA Args {
     $$ = make_node_nonterminal(Args, yylineno);
