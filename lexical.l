@@ -56,40 +56,40 @@ S   [+-]
     yylval = make_node_terminal(FLOAT, FLOAT_VALUE, value);
     return FLOAT;
 }
-";" {MAKE_NODE(SEMI)}
-"," {MAKE_NODE(COMMA)}
-"=" {MAKE_NODE(ASSIGNOP)}
+";" { MAKE_NODE(SEMI) }
+"," { MAKE_NODE(COMMA) }
+"=" { MAKE_NODE(ASSIGNOP) }
 (>=)|(<=)|(==)|(!=)|<|> {
     Value value;
     value.str_value = strdup(yytext);
     yylval = make_node_terminal(RELOP, STR_VALUE, value);
     return RELOP;
 }
-"+" {MAKE_NODE(PLUS)}
-"-" {MAKE_NODE(MINUS)}
-"*" {MAKE_NODE(STAR)}
-"/" {MAKE_NODE(DIV)}
-"&&" {MAKE_NODE(AND)}
-"||" {MAKE_NODE(OR)}
-"." {MAKE_NODE(DOT)}
-"!" {MAKE_NODE(NOT)}
+"+" { MAKE_NODE(PLUS) }
+"-" { MAKE_NODE(MINUS) }
+"*" { MAKE_NODE(STAR) }
+"/" { MAKE_NODE(DIV) }
+"&&" { MAKE_NODE(AND) }
+"||" { MAKE_NODE(OR) }
+"." { MAKE_NODE(DOT) }
+"!" { MAKE_NODE(NOT) }
 (int)|(float) {
     Value value;
     value.str_value = strdup(yytext);
     yylval = make_node_terminal(TYPE, STR_VALUE, value);
     return TYPE;
 }
-"(" {MAKE_NODE(LP)}
-")" {MAKE_NODE(RP)}
-"[" {MAKE_NODE(LB)}
-"]" {MAKE_NODE(RB)}
-"{" {MAKE_NODE(LC)}
-"}" {MAKE_NODE(RC)}
-struct {MAKE_NODE(STRUCT)}
-return {MAKE_NODE(RETURN)}
-if {MAKE_NODE(IF)}
-else {MAKE_NODE(ELSE)}
-while {MAKE_NODE(WHILE)}
+"(" { MAKE_NODE(LP) }
+")" { MAKE_NODE(RP) }
+"[" { MAKE_NODE(LB) }
+"]" { MAKE_NODE(RB) }
+"{" { MAKE_NODE(LC) }
+"}" { MAKE_NODE(RC) }
+struct { MAKE_NODE(STRUCT) }
+return { MAKE_NODE(RETURN) }
+if { MAKE_NODE(IF) }
+else { MAKE_NODE(ELSE) }
+while { MAKE_NODE(WHILE) }
 {L}({D}|{L})* {
     Value value;
     value.str_value = strdup(yytext);
@@ -98,5 +98,16 @@ while {MAKE_NODE(WHILE)}
 }
 
 \n { yycolumn = 1; }
-. { }
+[ \t] { }
+. {
+    static char msg_buf[1024];
+    sprintf(msg_buf, "Mysterious character \"%s\"", yytext);
+    yyerror(msg_buf);
+}
 %%
+extern int no_error;
+yyerror(char* msg) {
+    no_error = 0;
+    fprintf(stderr, "Error type A at Line %d: %s\n", \
+        yylineno, msg);
+}
