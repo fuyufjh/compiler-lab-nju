@@ -1,8 +1,6 @@
 #ifndef GRAMMER_TREE_H
 #define GRAMMER_TREE_H
 
-#include <stdarg.h>
-
 typedef enum ValueType {
     NO_VALUE,
     INT_VALUE,
@@ -27,6 +25,8 @@ extern const char* t_symbol_name[];
 #define get_name(s) \
     (s<ASSIGNOP?nt_symbol_name[s]:t_symbol_name[s-ASSIGNOP])
 
+int get_type(int s);
+
 typedef union {
     int int_value;
     float float_value;
@@ -36,7 +36,6 @@ typedef union {
 
 typedef struct Node {
     int symbol;
-    ValueType type;
     Value value;
     int lineno;
 
@@ -51,7 +50,7 @@ Node* root;
 void add_children(Node* parent, int n, ...);
 
 void print_tree(struct Node* root, int space);
-Node* make_node_terminal(int st, int vt, Value v);
+Node* make_node_terminal(int st, Value v);
 Node* make_node_nonterminal(int st);
 
 #endif

@@ -14,22 +14,22 @@ int yycolumn = 1;
 Value empty_value;
 
 #define MAKE_NODE(name) \
-    yylval = make_node_terminal(name, NO_VALUE, empty_value); \
+    yylval = make_node_terminal(name, empty_value); \
     return name;
 
 #define MAKE_STR_NODE(name) Value value; \
     value.str_value = strdup(yytext); \
-    yylval = make_node_terminal(name, STR_VALUE, value); \
+    yylval = make_node_terminal(name, value); \
     return name;
 
 #define MAKE_INT_NODE(name) Value value; \
     value.int_value = strtol(yytext, NULL, 0); \
-    yylval = make_node_terminal(name, INT_VALUE, value); \
+    yylval = make_node_terminal(name, value); \
     return name;
 
 #define MAKE_FLOAT_NODE(name) Value value; \
     value.float_value = atof(yytext); \
-    yylval = make_node_terminal(name, FLOAT_VALUE, value); \
+    yylval = make_node_terminal(name, value); \
     return name;
 
 %}

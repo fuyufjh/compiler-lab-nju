@@ -54,7 +54,7 @@ void print_tree(Node* root, int space) {
         printf("  ");
     }
     printf("%s", get_name(root->symbol));
-    switch (root->type) {
+    switch (get_type(root->symbol)) {
     case NO_VALUE:
         break;
     case INT_VALUE:
@@ -87,11 +87,11 @@ void print_tree(Node* root, int space) {
 static Node node_buffer[NODE_BUFFER_SIZE];
 static int node_used = 0;
 
-Node* make_node_terminal(int st, int vt, Value v) {
+Node* make_node_terminal(int st, Value v) {
     assert(node_used < NODE_BUFFER_SIZE);
 
     node_buffer[node_used].symbol = st;
-    node_buffer[node_used].type = vt;
+    //node_buffer[node_used].type = vt;
     node_buffer[node_used].value = v;
     node_buffer[node_used].lineno = yylineno;
     //add_child(&node_buffer[node_used], p);
@@ -123,6 +123,19 @@ const char* t_symbol_name[] = {
     "INT", "FLOAT", "TYPE", "ID", "SEMI", "COMMA", "STRUCT",
     "RETURN", "IF", "ELSE", "WHILE", "LC", "RC",
 };
+
+int get_type(int s) {
+    switch (s) {
+        case INT:
+            return INT_VALUE;
+        case FLOAT:
+            return FLOAT_VALUE;
+        case TYPE: case ID: case RELOP:
+            return STR_VALUE;
+        default:
+            return NO_VALUE;
+    }
+}
 
 /*int main() {*/
     /*root = make_node_nonterminal(Program, 1);*/
