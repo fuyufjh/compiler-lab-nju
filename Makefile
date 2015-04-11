@@ -1,9 +1,11 @@
 CC		= gcc
-CFLAGS	= -lfl -ly
+CFLAGS	= -lfl -ly -g
 CFILES	= $(shell find -name "*.c")
+HFILES	= $(shell find -name "*.h")
 
-parser: syntax.tab.c lex.yy.c $(CFILES)
+parser: syntax.tab.c lex.yy.c $(CFILES) $(HFILES)
 	$(CC) *.c -o parser $(CFLAGS)
+	@ctags -R
 
 syntax.tab.h: syntax.y
 	bison -d syntax.y
