@@ -7,13 +7,17 @@
 
 #define NODE_BUFFER_SIZE 2048
 
+extern int yylineno;
+
 void add_children(Node* parent, int n, ...) {
     va_list ap;
     va_start(ap, n);
-    while (n--) {
+    int i;
+    for (i=0; i<n; i++) {
         Node* child = va_arg(ap, Node*);
         // TODO: efficiency...
         add_child(parent, child);
+        if (i == 0) parent->lineno = child->lineno;
     }
 }
 
@@ -81,16 +85,17 @@ Node* make_node_terminal(int st, int vt, Value v) {
     node_buffer[node_used].symbol = st;
     node_buffer[node_used].type = vt;
     node_buffer[node_used].value = v;
+    node_buffer[node_used].lineno = yylineno;
     //add_child(&node_buffer[node_used], p);
 
     return &node_buffer[node_used++];
 }
 
-Node* make_node_nonterminal(int st, int lineno) {
+Node* make_node_nonterminal(int st) {
     assert(node_used < NODE_BUFFER_SIZE);
 
     node_buffer[node_used].symbol = st;
-    node_buffer[node_used].lineno = lineno;
+    //node_buffer[node_used].lineno = yylineno;
     //add_child(&node_buffer[node_used], p);
 
     return &node_buffer[node_used++];

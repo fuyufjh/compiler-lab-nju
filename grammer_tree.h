@@ -52,6 +52,6 @@ void add_children(Node* parent, int n, ...);
 
 void print_tree(struct Node* root, int space);
 Node* make_node_terminal(int st, int vt, Value v);
-Node* make_node_nonterminal(int st, int lineno);
+Node* make_node_nonterminal(int st);
 
 #endif
