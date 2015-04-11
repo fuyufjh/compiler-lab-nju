@@ -1,6 +1,7 @@
 %{
 #define YYSTYPE Node*
 
+#include <stdarg.h>
 #include "grammer_tree.h"
 #include "syntax.tab.h"
 
@@ -95,13 +96,19 @@ while { MAKE_NODE(WHILE) }
 \n { yycolumn = 1; yylineno++; }
 [ \t\v\f] { }
 . {
+    extern void lex_error(char*);
     static char msg_buf[1024];
     sprintf(msg_buf, "mysterious character \"%s\"", yytext);
-    yyerror(msg_buf);
+    lex_error(msg_buf);
 }
 %%
 extern int no_error;
-yyerror(char* msg) {
+yyerror(char* s) {
     no_error = 0;
-    fprintf(stderr, "Error at Line %d: %s\n", yylineno, msg);
+    printf("Error type B at Line %d: %s\n", yylloc.first_line, s);
+}
+
+void lex_error(char* s) {
+    no_error = 0;
+    printf("Error type A at Line %d: %s\n", yylloc.first_line, s);
 }
