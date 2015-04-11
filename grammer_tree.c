@@ -12,25 +12,33 @@ extern int yylineno;
 void add_children(Node* parent, int n, ...) {
     va_list ap;
     va_start(ap, n);
-    int i;
-    for (i=0; i<n; i++) {
+    int i, is_first_child = 1;
+    Node* prev;
+    while(n--) {
         Node* child = va_arg(ap, Node*);
-        // TODO: efficiency...
-        add_child(parent, child);
-        if (i == 0) parent->lineno = child->lineno;
+        if (child == NULL) continue;
+        if (is_first_child) {
+            parent->child = child;
+            parent->lineno = child->lineno;
+            is_first_child = 0;
+        } else {
+            prev->peer = child;
+        }
+        child->parent = parent;
+        prev = child;
     }
 }
 
-void add_child(struct Node* parent, Node* node) {
-    if (node == NULL || parent == NULL) return;
-    if (parent->child == NULL) {
-        parent->child = node;
-    } else {
-        struct Node* p = parent->child;
-        while (p->peer != NULL) p = p->peer;
-        p->peer = node;
-    }
-}
+/*void add_child(struct Node* parent, Node* node) {*/
+    /*if (node == NULL || parent == NULL) return;*/
+    /*if (parent->child == NULL) {*/
+        /*parent->child = node;*/
+    /*} else {*/
+        /*struct Node* p = parent->child;*/
+        /*while (p->peer != NULL) p = p->peer;*/
+        /*p->peer = node;*/
+    /*}*/
+/*}*/
 
 /*void add_peer(Node* node, struct Node* peer) {*/
     /*if (node == NULL || peer == NULL) return;*/

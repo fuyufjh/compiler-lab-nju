@@ -47,7 +47,7 @@ typedef struct Node {
 
 Node* root;
 
-void add_child(struct Node* parent, Node* node);
+//void add_child(struct Node* parent, Node* node);
 void add_children(Node* parent, int n, ...);
 
 void print_tree(struct Node* root, int space);
