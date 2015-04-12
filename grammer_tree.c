@@ -1,11 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
 #include <stdarg.h>
 #include "grammer_tree.h"
 #include "syntax.tab.h"
-
-#define NODE_BUFFER_SIZE 2048
 
 extern int yylineno;
 
@@ -84,29 +81,18 @@ void print_tree(Node* root, int space) {
     }
 }
 
-static Node node_buffer[NODE_BUFFER_SIZE];
-static int node_used = 0;
-
 Node* make_node_terminal(int st, Value v) {
-    assert(node_used < NODE_BUFFER_SIZE);
-
-    node_buffer[node_used].symbol = st;
-    //node_buffer[node_used].type = vt;
-    node_buffer[node_used].value = v;
-    node_buffer[node_used].lineno = yylineno;
-    //add_child(&node_buffer[node_used], p);
-
-    return &node_buffer[node_used++];
+    Node* node = (Node*)malloc(sizeof(Node));
+    node->symbol = st;
+    node->value = v;
+    node->lineno = yylineno;
+    return node;
 }
 
 Node* make_node_nonterminal(int st) {
-    assert(node_used < NODE_BUFFER_SIZE);
-
-    node_buffer[node_used].symbol = st;
-    //node_buffer[node_used].lineno = yylineno;
-    //add_child(&node_buffer[node_used], p);
-
-    return &node_buffer[node_used++];
+    Node* node = (Node*)malloc(sizeof(Node));
+    node->symbol = st;
+    return node;
 }
 
 const char* nt_symbol_name[] = {
