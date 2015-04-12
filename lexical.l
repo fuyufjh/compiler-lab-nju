@@ -39,7 +39,6 @@ D   [0-9]
 L   [a-zA-Z_]
 H   [a-fA-F0-9]
 E   [Ee][+-]?{D}+
-S   [+-]
 
 %%
 "//" {
@@ -66,9 +65,9 @@ while { MAKE_NODE(WHILE) }
 
 {L}({D}|{L})* { MAKE_STR_NODE(ID) }
 
-{S}?0[0-7]+ { MAKE_INT_NODE(INT) }
-{S}?0[xX]{H}+ { MAKE_INT_NODE(INT) }
-{S}?([1-9]{D}*)|0 { MAKE_INT_NODE(INT) }
+0[0-7]+ { MAKE_INT_NODE(INT) }
+0[xX]{H}+ { MAKE_INT_NODE(INT) }
+([1-9]{D}*)|0 { MAKE_INT_NODE(INT) }
 
 {D}+{E} { MAKE_FLOAT_NODE(FLOAT) }
 {D}*"."{D}+({E})? { MAKE_FLOAT_NODE(FLOAT) }
@@ -94,7 +93,7 @@ while { MAKE_NODE(WHILE) }
 "}" { MAKE_NODE(RC) }
 
 \n { yycolumn = 1; yylineno++; }
-[ \t\v\f] { }
+[ \t\v\f\r] { }
 . {
     extern void lex_error(char*);
     static char msg_buf[1024];
