@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #include "syntax.tab.h"
-#include "grammer_tree.h"
+#include "ast.h"
 
 extern void yyrestart(FILE * input_file);
 
@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
     }
     yyrestart(f);
     yyparse();
-    if (no_error) print_tree(root, 0);
+    if (no_error) print_ast(root, 0);
 
     return 0;
 }

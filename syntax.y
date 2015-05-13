@@ -1,7 +1,8 @@
 %{
 #include <stdlib.h>
-#define YYSTYPE Node*
-#include "grammer_tree.h"
+#include "ast.h"
+typedef struct ast_node* AST_NODE;
+#define YYSTYPE AST_NODE
 %}
 %locations
 %define parse.error verbose
@@ -45,260 +46,260 @@
 %%
 /* High-level Definitions */
 Program: ExtDefList {
-    $$ = make_node_nonterminal(Program);
+    $$ = make_ast_node_nonterminal(Program);
     root = $$;
-    add_children($$, 1, $1);
+    add_children_ast_node($$, 1, $1);
     }
     ;
 ExtDefList: ExtDef ExtDefList {
-    $$ = make_node_nonterminal(ExtDefList);
-    add_children($$, 2, $1, $2);
+    $$ = make_ast_node_nonterminal(ExtDefList);
+    add_children_ast_node($$, 2, $1, $2);
     }
     | /* empty */ { $$ = NULL; }
     ;
 ExtDef: Specifier ExtDecList SEMI {
-    $$ = make_node_nonterminal(ExtDef);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(ExtDef);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | Specifier SEMI {
-    $$ = make_node_nonterminal(ExtDef);
-    add_children($$, 2, $1, $2);
+    $$ = make_ast_node_nonterminal(ExtDef);
+    add_children_ast_node($$, 2, $1, $2);
     }
     | Specifier FunDec CompSt {
-    $$ = make_node_nonterminal(ExtDef);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(ExtDef);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | error SEMI { yyerrok; }
     ;
 ExtDecList: VarDec {
-    $$ = make_node_nonterminal(ExtDecList);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(ExtDecList);
+    add_children_ast_node($$, 1, $1);
     }
     | VarDec COMMA ExtDecList {
-    $$ = make_node_nonterminal(ExtDecList);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(ExtDecList);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     ;
 
 /* Specifiers */
 Specifier: TYPE {
-    $$ = make_node_nonterminal(Specifier);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(Specifier);
+    add_children_ast_node($$, 1, $1);
     }
     | StructSpecifier {
-    $$ = make_node_nonterminal(Specifier);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(Specifier);
+    add_children_ast_node($$, 1, $1);
     }
     ;
 StructSpecifier: STRUCT OptTag LC DefList RC {
-    $$ = make_node_nonterminal(StructSpecifier);
-    add_children($$, 5, $1, $2, $3, $4, $5);
+    $$ = make_ast_node_nonterminal(StructSpecifier);
+    add_children_ast_node($$, 5, $1, $2, $3, $4, $5);
     }
     | STRUCT Tag {
-    $$ = make_node_nonterminal(StructSpecifier);
-    add_children($$, 2, $1, $2);
+    $$ = make_ast_node_nonterminal(StructSpecifier);
+    add_children_ast_node($$, 2, $1, $2);
     }
     ;
 OptTag: ID {
-    $$ = make_node_nonterminal(ID);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(ID);
+    add_children_ast_node($$, 1, $1);
     }
     | /* empty */ { $$ = NULL; }
     ;
 Tag: ID {
-    $$ = make_node_nonterminal(Tag);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(Tag);
+    add_children_ast_node($$, 1, $1);
     }
     ;
 
 /* Declarators */
 VarDec: ID {
-    $$ = make_node_nonterminal(VarDec);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(VarDec);
+    add_children_ast_node($$, 1, $1);
     }
     | VarDec LB INT RB {
-    $$ = make_node_nonterminal(VarDec);
-    add_children($$, 4, $1, $2, $3, $4);
+    $$ = make_ast_node_nonterminal(VarDec);
+    add_children_ast_node($$, 4, $1, $2, $3, $4);
     }
     ;
 FunDec: ID LP VarList RP {
-    $$ = make_node_nonterminal(FunDec);
-    add_children($$, 4, $1, $2, $3, $4);
+    $$ = make_ast_node_nonterminal(FunDec);
+    add_children_ast_node($$, 4, $1, $2, $3, $4);
     }
     | ID LP RP {
-    $$ = make_node_nonterminal(FunDec);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(FunDec);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     ;
 VarList: ParamDec COMMA VarList {
-    $$ = make_node_nonterminal(VarList);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(VarList);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | ParamDec {
-    $$ = make_node_nonterminal(VarList);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(VarList);
+    add_children_ast_node($$, 1, $1);
     }
     ;
 ParamDec: Specifier VarDec {
-    $$ = make_node_nonterminal(ParamDec);
-    add_children($$, 2, $1, $2);
+    $$ = make_ast_node_nonterminal(ParamDec);
+    add_children_ast_node($$, 2, $1, $2);
     }
     ;
 
 /* Statements */
 CompSt: LC DefList StmtList RC {
-    $$ = make_node_nonterminal(CompSt);
-    add_children($$, 4, $1, $2, $3, $4);
+    $$ = make_ast_node_nonterminal(CompSt);
+    add_children_ast_node($$, 4, $1, $2, $3, $4);
     }
     | error RC { yyerrok; }
     ;
 StmtList: Stmt StmtList {
-    $$ = make_node_nonterminal(StmtList);
-    add_children($$, 2, $1, $2);
+    $$ = make_ast_node_nonterminal(StmtList);
+    add_children_ast_node($$, 2, $1, $2);
     }
     | /* empty */ { $$ = NULL; }
     ;
 Stmt: Exp SEMI {
-    $$ = make_node_nonterminal(Stmt);
-    add_children($$, 2, $1, $2);
+    $$ = make_ast_node_nonterminal(Stmt);
+    add_children_ast_node($$, 2, $1, $2);
     }
     | CompSt {
-    $$ = make_node_nonterminal(Stmt);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(Stmt);
+    add_children_ast_node($$, 1, $1);
     }
     | RETURN Exp SEMI {
-    $$ = make_node_nonterminal(Stmt);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Stmt);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | IF LP Exp RP Stmt {
-    $$ = make_node_nonterminal(Stmt);
-    add_children($$, 5, $1, $2, $3, $4, $5);
+    $$ = make_ast_node_nonterminal(Stmt);
+    add_children_ast_node($$, 5, $1, $2, $3, $4, $5);
     }
     | IF LP Exp RP Stmt ELSE Stmt %prec LOWER_THAN_ELSE {
-    $$ = make_node_nonterminal(Stmt);
-    add_children($$, 7, $1, $2, $3, $4, $5, $6, $7);
+    $$ = make_ast_node_nonterminal(Stmt);
+    add_children_ast_node($$, 7, $1, $2, $3, $4, $5, $6, $7);
     }
     | WHILE LP Exp RP Stmt {
-    $$ = make_node_nonterminal(Stmt);
-    add_children($$, 5, $1, $2, $3, $4, $5);
+    $$ = make_ast_node_nonterminal(Stmt);
+    add_children_ast_node($$, 5, $1, $2, $3, $4, $5);
     }
     | error SEMI { yyerrok; }
     ;
 
 /* Local Definitions */
 DefList: Def DefList {
-    $$ = make_node_nonterminal(DefList);
-    add_children($$, 2, $1, $2);
+    $$ = make_ast_node_nonterminal(DefList);
+    add_children_ast_node($$, 2, $1, $2);
     }
     | /* empty */ { $$ = NULL; }
     ;
 Def: Specifier DecList SEMI {
-    $$ = make_node_nonterminal(Def);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Def);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | error SEMI { yyerrok; }
     ;
 DecList: Dec {
-    $$ = make_node_nonterminal(DecList);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(DecList);
+    add_children_ast_node($$, 1, $1);
     }
     | Dec COMMA DecList {
-    $$ = make_node_nonterminal(DecList);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(DecList);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     ;
 Dec: VarDec {
-    $$ = make_node_nonterminal(Dec);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(Dec);
+    add_children_ast_node($$, 1, $1);
     }
     | VarDec ASSIGNOP Exp {
-    $$ = make_node_nonterminal(Dec);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Dec);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     ;
 
 /* Expressions */
 Exp: Exp ASSIGNOP Exp {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | Exp AND Exp {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | Exp OR Exp {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | Exp RELOP Exp {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | Exp PLUS Exp {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | Exp MINUS Exp {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | Exp STAR Exp {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | Exp DIV Exp {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | LP Exp RP {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | MINUS Exp {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 2, $1, $2);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 2, $1, $2);
     }
     | NOT Exp {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 2, $1, $2);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 2, $1, $2);
     }
     | ID LP Args RP {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 4, $1, $2, $3, $4);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 4, $1, $2, $3, $4);
     }
     | ID LP RP {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | Exp LB Exp RB {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 4, $1, $2, $3, $4);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 4, $1, $2, $3, $4);
     }
     | Exp DOT ID {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | ID {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 1, $1);
     }
     | INT {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 1, $1);
     }
     | FLOAT {
-    $$ = make_node_nonterminal(Exp);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(Exp);
+    add_children_ast_node($$, 1, $1);
     }
     | error RP { yyerrok; }
     ;
 Args: Exp COMMA Args {
-    $$ = make_node_nonterminal(Args);
-    add_children($$, 3, $1, $2, $3);
+    $$ = make_ast_node_nonterminal(Args);
+    add_children_ast_node($$, 3, $1, $2, $3);
     }
     | Exp {
-    $$ = make_node_nonterminal(Args);
-    add_children($$, 1, $1);
+    $$ = make_ast_node_nonterminal(Args);
+    add_children_ast_node($$, 1, $1);
     }
     ;
 

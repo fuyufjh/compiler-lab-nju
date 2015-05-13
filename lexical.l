@@ -1,8 +1,9 @@
 %{
-#define YYSTYPE Node*
+typedef struct ast_node* AST_NODE;
+#define YYSTYPE AST_NODE
 
 #include <stdarg.h>
-#include "grammer_tree.h"
+#include "ast.h"
 #include "syntax.tab.h"
 
 int yycolumn = 1;
@@ -12,25 +13,25 @@ int yycolumn = 1;
     yylloc.last_column = yycolumn + yyleng - 1; \
     yycolumn += yyleng;
 
-Value empty_value;
+union ast_value empty_value;
 
 #define MAKE_NODE(name) \
-    yylval = make_node_terminal(name, empty_value); \
+    yylval = make_ast_node_terminal(name, empty_value); \
     return name;
 
-#define MAKE_STR_NODE(name) Value value; \
+#define MAKE_STR_NODE(name) union ast_value value; \
     value.str_value = strdup(yytext); \
-    yylval = make_node_terminal(name, value); \
+    yylval = make_ast_node_terminal(name, value); \
     return name;
 
-#define MAKE_INT_NODE(name) Value value; \
+#define MAKE_INT_NODE(name) union ast_value value; \
     value.int_value = strtol(yytext, NULL, 0); \
-    yylval = make_node_terminal(name, value); \
+    yylval = make_ast_node_terminal(name, value); \
     return name;
 
-#define MAKE_FLOAT_NODE(name) Value value; \
+#define MAKE_FLOAT_NODE(name) union ast_value value; \
     value.float_value = atof(yytext); \
-    yylval = make_node_terminal(name, value); \
+    yylval = make_ast_node_terminal(name, value); \
     return name;
 
 %}
