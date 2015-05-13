@@ -43,7 +43,7 @@ struct ast_node {
     struct ast_node *parent;
 };
 
-struct ast_node *root;
+struct ast_node *ast_root;
 
 void add_children_ast_node(struct ast_node *parent, int n, ...);
 

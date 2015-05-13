@@ -47,7 +47,7 @@ typedef struct ast_node* AST_NODE;
 /* High-level Definitions */
 Program: ExtDefList {
     $$ = make_ast_node_nonterminal(Program);
-    root = $$;
+    ast_root = $$;
     add_children_ast_node($$, 1, $1);
     }
     ;

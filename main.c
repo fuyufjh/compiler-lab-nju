@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
     }
     yyrestart(f);
     yyparse();
-    if (no_error) print_ast(root, 0);
+    if (no_error) print_ast(ast_root, 0);
 
     return 0;
 }

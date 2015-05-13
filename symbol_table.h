@@ -8,6 +8,7 @@ struct st_node {
     struct st_node *prev, *next;
 };
 
-void insert_symbol(struct symbol *s);
+void insert_symbol(struct symbol *);
+struct symbol *find_symbol(char *name);
 
 #endif

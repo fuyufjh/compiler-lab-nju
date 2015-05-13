@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "symbol_type.h"
 #include "symbol_table.h"
 
@@ -49,4 +50,14 @@ void insert_symbol(struct symbol *s) {
     struct st_node* new_node = (struct st_node *) malloc(sizeof(struct st_node));
     new_node->symbol = s;
     insert_head(&st_hashtable[hash_val], new_node);
+}
+
+struct symbol *find_symbol(char *name) {
+    unsigned int hash_val = hash_pjw(name);
+    struct st_node *pnode = st_hashtable[hash_val];
+    while (strcmp(pnode->symbol->name, name) != 0) {
+        pnode = pnode->next;
+        if (pnode == NULL) return NULL;
+    }
+    return pnode->symbol;
 }
