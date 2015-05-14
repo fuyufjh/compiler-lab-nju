@@ -12,7 +12,7 @@ void dfs_ext_def(struct ast_node *root);
 void dfs_ext_dec_list(struct ast_node *root, struct var_type *t);
 void dfs_fun_dec(struct ast_node *root, struct var_type *ret);
 struct func_param_list *dfs_var_list(struct ast_node *root);
-struct var_type *dfs_param_dec(struct ast_node *root);
+struct var_type *dfs_param_dec(struct ast_node *root, char **name);
 struct var_type *dfs_var_dec(struct ast_node *root, char **name, struct var_type *vt);
 struct var_type *dfs_specifier(struct ast_node *root);
 struct struct_type *dfs_struct_specifier(struct ast_node *root);

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdarg.h>
 #include "common.h"
 #include "syntax.tab.h"
 #include "read_symbols.h"
@@ -9,7 +10,6 @@
     (n == 0 ? node->child : get_nth_child_ast_node(node, n))
 static struct var_type *func_ret_type;
 
-#include <stdarg.h>
 #include <stdio.h>
 
 const char *error_format_str[];
@@ -171,8 +171,10 @@ void dfs_ext_def(struct ast_node *root) {
     // ExtDef: Specifier FunDec CompSt
     case FunDec:
         func_ret_type = var_type;
+        push_scope();
         dfs_fun_dec(child(root, 1), var_type);
         dfs_comp_st(child(root, 2));
+        pop_scope();
         func_ret_type = NULL;
         break;
     }
@@ -187,14 +189,21 @@ void dfs_fun_dec(struct ast_node *root, struct var_type *ret) {
     char* name = dfs_id(root->child);
     if (child(root, 2)->symbol == VarList) {
         vt->func.params = dfs_var_list(child(root, 2));
+        struct func_param_list *p = vt->func.params;
+        while (p) {
+            insert_symbol(p->name, p->type);
+            p = p->tail;
+        }
     }
-    insert_symbol(name, vt);
+    if (!insert_symbol(name, vt)) {
+        print_error(4, root->child, name);
+    }
 }
 
 struct func_param_list *dfs_var_list(struct ast_node *root) {
     assert(root->symbol == VarList);
     struct func_param_list *p = new(struct func_param_list);
-    p->type = dfs_param_dec(root->child);
+    p->type = dfs_param_dec(root->child, &p->name);
     if (child(root, 2)) {
         p->tail = dfs_var_list(child(root, 2));
     } else {
@@ -203,18 +212,19 @@ struct func_param_list *dfs_var_list(struct ast_node *root) {
     return p;
 }
 
-struct var_type *dfs_param_dec(struct ast_node *root) {
+struct var_type *dfs_param_dec(struct ast_node *root, char **name) {
     assert(root->symbol == ParamDec);
     struct var_type *spec_t = dfs_specifier(root->child);
-    char* name; // Defined but not saved
-    return dfs_var_dec(child(root, 1), &name, spec_t);
+    return dfs_var_dec(child(root, 1), name, spec_t);
 }
 
 void dfs_ext_dec_list(struct ast_node *root, struct var_type *spec_t) {
     assert(root->symbol == ExtDecList);
     char* name;
     struct var_type *t = dfs_var_dec(root->child, &name, spec_t);
-    insert_symbol(name, t);
+    if (!insert_symbol(name, t)) {
+        print_error(3, root->child, name);
+    }
     if (child(root, 1) != NULL) {
         dfs_ext_dec_list(child(root, 2), spec_t);
     }
@@ -366,7 +376,9 @@ void dfs_comp_st(struct ast_node *root) {
     if (child(root, 1)->symbol == DefList) {
         struct field_list *fields = dfs_def_list(child(root, 1)), *p = fields;
         while (p != NULL) {
-            insert_symbol(p->name, p->type); // local varibles
+            if (!insert_symbol(p->name, p->type)) {
+                print_error(3, child(root, 1), p->name);
+            }
             p = p->tail;
         }
     }
@@ -576,7 +588,12 @@ void dfs_stmt(struct ast_node *root) {
             print_error(8, child(root, 1));
             return;
         }
-    } else {
+    } else if (child(root, 0)->symbol == CompSt) {
+        push_scope();
+        dfs_comp_st(child(root, 0));
+        pop_scope();
+    }
+    else {
         struct ast_node *p;
         for (p = root->child; p; p = p->peer) {
             dfs(p);

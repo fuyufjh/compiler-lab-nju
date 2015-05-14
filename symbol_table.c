@@ -10,6 +10,10 @@
 struct st_node *st_hashtable[HASH_MASK + 1];
 struct st_node *st_struct_hashtable[HASH_MASK + 1];
 
+struct st_node *st_scope_stack[MAX_BLOCK];
+static int scope_level = 0;
+#define GLOBAL 0
+
 static unsigned int hash_pjw(char* name) {
     unsigned int val = 0, i;
     for (; *name; ++name) {
@@ -19,11 +23,10 @@ static unsigned int hash_pjw(char* name) {
     return val;
 }
 
-void insert_head(struct st_node **head, struct st_node *node) {
+static void insert_head(struct st_node **head, struct st_node *node) {
     if (*head == NULL) {
         *head = node;
-        node->next = NULL;
-        node->prev = NULL;
+        node->next = node->prev = NULL;
     } else {
         struct st_node *temp = *head;
         *head = node;
@@ -33,16 +36,69 @@ void insert_head(struct st_node **head, struct st_node *node) {
     }
 }
 
-struct st_node *delete_head(struct st_node **head) {
+static struct st_node *delete_head(struct st_node **head) {
     if (*head == NULL) {
         return NULL;
     } else {
         struct st_node* p = *head;
         *head = p->next;
-        p->next->prev = NULL;
-        p->next = NULL;
         p->prev = NULL;
+        if (p->next != NULL) {
+            p->next->prev = NULL;
+            p->next = NULL;
+        }
         return p;
+    }
+}
+
+struct st_node *delete_node_scope_list(struct st_node* node) {
+    struct st_node **head = &st_scope_stack[scope_level];
+    if (node->s_prev == NULL) {
+        *head = node->s_next;
+        if (node->s_next) node->s_next->s_prev = NULL;
+        node->s_prev = node->s_next = NULL;
+    } else {
+        if (node->s_next) node->s_prev->s_prev = node->s_prev;
+        node->s_prev->s_next = node->s_next;
+        node->s_prev = node->s_next = NULL;
+    }
+    return node;
+}
+
+void push_scope() {
+    scope_level++;
+    //st_scope_stack[scope_level] = NULL;
+};
+
+void pop_scope() {
+    struct st_node **head = &st_scope_stack[scope_level];
+    while (*head != NULL) {
+        struct st_node *p = *head, *temp;
+        while (p) {
+            temp = p->s_next;
+            if (p->prev == NULL) { // removable
+                struct st_node **ht_head = &st_hashtable[hash_pjw(p->symbol->name)];
+                struct st_node* node = delete_head(ht_head);
+                free(delete_node_scope_list(node));
+            }
+            p = temp;
+        }
+    }
+    scope_level--;
+};
+
+void insert_to_stack(struct st_node *node) {
+    node->s_level = scope_level;
+    struct st_node **head = &st_scope_stack[scope_level];
+    if (*head == NULL) {
+        *head = node;
+        node->s_prev = node->s_next = NULL;
+    } else {
+        struct st_node *old_head = *head;
+        *head = node;
+        node->s_next = old_head;
+        old_head->s_prev = node;
+        node->s_prev = NULL;
     }
 }
 
@@ -95,8 +151,26 @@ void print_struct_type(struct struct_type *st) {
     printf("  }\n");
 }*/
 
+struct st_node *find_node_in_scope(char *name, int scope) {
+    struct st_node *p = st_hashtable[hash_pjw(name)];
+    while (p && p->s_level == scope) {
+        if (strcmp(p->symbol->name, name) == 0) return p;
+        p = p->next;
+    }
+    return NULL;
+}
 
-void insert_st_node(struct symbol *s) {
+struct st_node *find_struct_symbol_node(char* name) {
+    struct st_node *p = st_struct_hashtable[hash_pjw(name)];
+    while (p) {
+        if (strcmp(p->struct_symbol->name, name) == 0) return p;
+        p = p->next;
+    }
+    return NULL;
+}
+
+bool insert_st_node(struct symbol *s) {
+    if (find_node_in_scope(s->name, scope_level)) return false;
     printf("INSERT SYMBOL: %s\n", s->name);
     //print_var_type(s->type);
     printf("  %s\n", get_var_type_str(s->type));
@@ -104,12 +178,15 @@ void insert_st_node(struct symbol *s) {
     unsigned int hash_val = hash_pjw(s->name);
     struct st_node* new_node = new(struct st_node);
     new_node->symbol = s;
-    new_node->next = NULL;
-    new_node->prev = NULL;
+    //new_node->next = NULL;
+    //new_node->prev = NULL;
     insert_head(&st_hashtable[hash_val], new_node);
+    insert_to_stack(new_node);
+    return true;
 }
 
-void insert_st_struct_node(struct struct_symbol *s) {
+bool insert_st_struct_node(struct struct_symbol *s) {
+    if (find_struct_symbol_node(s->name)) return false;
     // debug
     printf("INSERT STRUCT SYMBOL: %s\n", s->name);
     static struct var_type svt = { STRUCTURE , {} };
@@ -122,20 +199,31 @@ void insert_st_struct_node(struct struct_symbol *s) {
     new_node->next = NULL;
     new_node->prev = NULL;
     insert_head(&st_struct_hashtable[hash_val], new_node);
+    return true;
 }
 
-void insert_symbol(char* name, struct var_type *vt) {
+bool insert_symbol(char* name, struct var_type *vt) {
+    if (vt->kind == FUNCTION) {
+        int backup = scope_level;
+        scope_level = GLOBAL;
+        struct symbol *s = new(struct symbol);
+        s->type = vt;
+        s->name = name;
+        bool ret = insert_st_node(s);
+        scope_level = backup;
+        return ret;
+    }
     struct symbol *s = new(struct symbol);
     s->type = vt;
     s->name = name;
-    insert_st_node(s);
+    return insert_st_node(s);
 }
 
-void insert_struct_symbol(char* name, struct struct_type *st) {
+bool insert_struct_symbol(char* name, struct struct_type *st) {
     struct struct_symbol *s = new(struct struct_symbol);
     s->type = st;
     s->name = name;
-    insert_st_struct_node(s);
+    return insert_st_struct_node(s);
 }
 
 struct symbol *find_symbol(char *name) {

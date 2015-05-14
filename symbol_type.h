@@ -44,6 +44,7 @@ struct field_list {
 
 struct func_param_list {
     struct var_type *type;
+    char *name;
     struct func_param_list *tail;
 };
 
