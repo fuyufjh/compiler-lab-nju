@@ -58,16 +58,18 @@ void print_var_type(struct var_type *vt) {
         printf("  basic: %s\n", vt->basic == 273 ? "int" : "float");
         break;
     case ARRAY:
-        printf("  array: %d(", vt->array.size);
+        /*printf("  array: %d(", vt->array.size);
         struct var_type *t = vt->array.elem;
-        /*while (t->kind == ARRAY) {
-            printf("%d ", t->array.size);
-            t = t->array.elem;
-        }
-        printf("%s )\n", t->array.elem == &int_type ? "int" : "float");
-        */
         print_var_type(t);
-        printf(")");
+        printf(")");*/
+        printf(" array: ");
+        print_var_type(vt->array.elem);
+        struct array_size_list *sl = vt->array.size_list;
+        while (sl != NULL) {
+            printf("%d ", sl->size);
+            sl = sl->next;
+        }
+        printf("\n");
         break;
     case STRUCTURE:
         print_struct_type(vt->struct_type);

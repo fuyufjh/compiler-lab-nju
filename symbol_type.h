@@ -12,15 +12,19 @@ struct var_type {
         int basic;
         struct {
             struct var_type *elem;
-            int size;
+            struct array_size_list *size_list;
         } array;
-        //struct field_list *fields;
         struct struct_type* struct_type;
         struct {
             struct var_type* ret;
             struct func_param_list *params;
         } func;
     };
+};
+
+struct array_size_list {
+    int size;
+    struct array_size_list *next;
 };
 
 struct struct_symbol {

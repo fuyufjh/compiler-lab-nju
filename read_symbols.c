@@ -98,37 +98,31 @@ void dfs_ext_dec_list(struct ast_node *root, struct var_type *spec_t) {
     }
 }
 
-struct var_type *dfs_var_dec_reversed(struct ast_node *root, char **name, struct var_type *vt) {
-    if (child(root, 0)->symbol == ID) {
-        *name = dfs_id(root->child);
-        return vt;
-    } else {
-        struct var_type *p = new(struct var_type);
-        p->kind = ARRAY;
-        p->array.size = child(root, 2)->value.int_value;
-        p->array.elem = dfs_var_dec_reversed(child(root, 0), name, vt);
-        return p;
-    }
-}
-
 struct var_type *dfs_var_dec(struct ast_node *root, char **name, struct var_type *vt) {
     assert(root->symbol == VarDec);
-    struct var_type *result = dfs_var_dec_reversed(root, name, vt);
-    struct var_type *first = result, *last = first;
-    if (first->kind != ARRAY) return result;
-    if (first->array.elem->kind != ARRAY) return result;
-    while (last->array.elem->kind == ARRAY) {
-        last = last->array.elem;
+    if (root->child->symbol == ID) {
+        *name = dfs_id(root->child);
+        return vt;
     }
-    struct var_type *front = first->array.elem, *back = first;
-    while (back != last) {
-        struct var_type *t = front->array.elem;
-        front->array.elem = back;
-        back = front;
-        front = t;
+    struct ast_node *node = root;
+    struct array_size_list *head = new(struct array_size_list);
+    head->size = child(node, 2)->value.int_value;
+    head->next = NULL;
+    node = node->child;
+    while (node->child->symbol == VarDec) {
+        struct array_size_list *sl = new(struct array_size_list);
+        sl->size = child(node, 2)->value.int_value;
+        sl->next = head;
+        head = sl;
+        node = node->child;
     }
-    first->array.elem = front;
-    return back;
+    *name = dfs_id(node->child);
+    struct var_type* array_vt = new(struct var_type);
+    array_vt->kind = ARRAY;
+
+    array_vt->array.size_list = head;
+    array_vt->array.elem = vt;
+    return array_vt;
 }
 
 struct var_type *dfs_specifier(struct ast_node *root) {
@@ -236,28 +230,3 @@ struct field_list *dfs_dec(struct ast_node *root, struct var_type *vt) {
     return fl;
 }
 
-/*struct var_type *dfs_struct_dec(struct ast_node *root, char **name) {
-    assert(root->symbol == StructSpecifier);
-    assert(child(root, 1)->symbol == OptTag);
-    // StructSpecifier: STRUCT OptTag LC DefList RC | STRUCT Tag
-    struct ast_node *p_def_list = (child(root, 3));
-    *name = child(p_def_list, 1)->child->value.str_value;
-    struct var_type *p = new(struct var_type);
-    p->kind = STRUCTURE;
-    p->fields = NULL;
-    while (p_def_list != NULL) {
-
-
-        if (p_def_list->child != NULL) {
-            p_def_list = child(p_def_list, 1);
-        } else {
-            p_def_list = NULL; // Break
-        }
-    }
-}*/
-
-/*struct field_list *dfs_struct_dec(struct ast_node *def_list) {
-    assert(def_list->symbol == DefList);
-    struct field_list *p = new(struct field_list);
-    //p->name = child(def_list, 0)->
-}*/
