@@ -160,6 +160,7 @@ void dfs(struct ast_node *root) {
 void dfs_ext_def(struct ast_node *root) {
     assert(root->symbol == ExtDef);
     struct var_type *var_type = dfs_specifier(child(root, 0));
+    if (var_type == NULL) return;
     switch (child(root, 1)->symbol) {
     // ExtDef: Specifier ExtDecList SEMI
     case ExtDecList:
@@ -209,12 +210,17 @@ struct func_param_list *dfs_var_list(struct ast_node *root) {
     } else {
         p->tail = NULL;
     }
+    if (p->type == NULL) {
+        free(p);
+        return p->tail;
+    }
     return p;
 }
 
 struct var_type *dfs_param_dec(struct ast_node *root, char **name) {
     assert(root->symbol == ParamDec);
     struct var_type *spec_t = dfs_specifier(root->child);
+    if (spec_t == NULL) return NULL;
     return dfs_var_dec(child(root, 1), name, spec_t);
 }
 
@@ -278,6 +284,7 @@ struct var_type *dfs_specifier(struct ast_node *root) {
         p = new(struct var_type);
         p->kind = STRUCTURE;
         p->struct_type = dfs_struct_specifier(root->child);
+        if (p->struct_type == NULL) return NULL;
         break;
     }
     return p;
@@ -291,14 +298,25 @@ struct struct_type *dfs_struct_specifier(struct ast_node *root) {
     // StructSpecifier: STRUCT OptTag LC DefList RC
     case OptTag:
         st = new(struct struct_type);
-        st->fields = dfs_def_list(child(root, 3));
+        if (child(root, 3) && child(root, 3)->symbol == DefList) {
+            push_scope();
+            st->fields = dfs_def_list(child(root, 3));
+            pop_scope();
+        } else {
+            st->fields = NULL;
+        }
         name = dfs_opt_tag(child(root, 1));
-        insert_struct_symbol(name, st);
+        if (!insert_struct_symbol(name, st)) {
+            print_error(16, child(root, 1), name);
+        }
         break;
     // StructSpecifier: STRUCT Tag
     case Tag:
         name = dfs_tag(child(root, 1));
         st = find_struct_symbol(name)->type;
+        if (st == NULL) {
+            print_error(17, child(root, 1), name);
+        }
         break;
     }
     return st;
@@ -350,6 +368,7 @@ struct field_list *dfs_def_list(struct ast_node *root) {
 struct field_list *dfs_def(struct ast_node *root) {
     assert(root->symbol == Def);
     struct var_type *vt = dfs_specifier(root->child);
+    if (vt == NULL) return NULL;
     return dfs_dec_list(child(root, 1), vt);
 }
 
@@ -368,19 +387,25 @@ struct field_list *dfs_dec(struct ast_node *root, struct var_type *vt) {
     struct field_list *fl = new(struct field_list);
     fl->type = dfs_var_dec(root->child, &fl->name, vt);
     fl->tail = NULL;
+    if (!insert_symbol(fl->name, fl->type)) {
+        print_error(15, root->child, fl->name);
+        free(fl);
+        return NULL;
+    }
     return fl;
 }
 
 void dfs_comp_st(struct ast_node *root) {
     assert(root->symbol == CompSt);
     if (child(root, 1)->symbol == DefList) {
-        struct field_list *fields = dfs_def_list(child(root, 1)), *p = fields;
+        dfs_def_list(child(root, 1));
+        /*struct field_list *fields = dfs_def_list(child(root, 1)), *p = fields;
         while (p != NULL) {
             if (!insert_symbol(p->name, p->type)) {
                 print_error(3, child(root, 1), p->name);
             }
             p = p->tail;
-        }
+        }*/
     }
     if (child(root, 2) && child(root,2)->symbol == StmtList) {
         dfs(child(root, 2));
