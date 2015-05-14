@@ -2,6 +2,7 @@
 
 #include "syntax.tab.h"
 #include "ast.h"
+#include "read_symbols.h"
 
 extern void yyrestart(FILE * input_file);
 
@@ -17,6 +18,6 @@ int main(int argc, char* argv[]) {
     yyrestart(f);
     yyparse();
     if (no_error) print_ast(ast_root, 0);
-
+    read_symbols();
     return 0;
 }

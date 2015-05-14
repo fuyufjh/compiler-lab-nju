@@ -101,7 +101,7 @@ StructSpecifier: STRUCT OptTag LC DefList RC {
     }
     ;
 OptTag: ID {
-    $$ = make_ast_node_nonterminal(ID);
+    $$ = make_ast_node_nonterminal(OptTag);
     add_children_ast_node($$, 1, $1);
     }
     | /* empty */ { $$ = NULL; }

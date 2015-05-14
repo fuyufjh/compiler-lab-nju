@@ -46,7 +46,7 @@ struct ast_node {
 struct ast_node *ast_root;
 
 void add_children_ast_node(struct ast_node *parent, int n, ...);
-
+struct ast_node *get_nth_child_ast_node(struct ast_node *root, int n);
 void print_ast(struct ast_node *root, int space);
 struct ast_node *make_ast_node_terminal(int st, union ast_value value);
 struct ast_node *make_ast_node_nonterminal(int st);

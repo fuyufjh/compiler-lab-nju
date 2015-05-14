@@ -26,6 +26,14 @@ void add_children_ast_node(struct ast_node *parent, int n, ...) {
     }
 }
 
+struct ast_node *get_nth_child_ast_node(struct ast_node *root, int n) {
+    struct ast_node *p = root->child;
+    while (n-- && p != NULL) {
+        p = p->peer;
+    }
+    return p;
+}
+
 void print_ast(struct ast_node *root, int space) {
     if (root == NULL) return;
     int n;

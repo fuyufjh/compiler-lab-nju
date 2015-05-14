@@ -14,15 +14,28 @@ struct var_type {
             struct var_type *elem;
             int size;
         } array;
-        struct struct_field_list *fields;
-        struct func_param_list *params;
+        //struct field_list *fields;
+        struct struct_type* struct_type;
+        struct {
+            struct var_type* ret;
+            struct func_param_list *params;
+        } func;
     };
 };
 
-struct struct_field_list {
+struct struct_symbol {
+    char *name;
+    struct struct_type *type;
+};
+
+struct struct_type {
+    struct field_list *fields;
+};
+
+struct field_list {
     char *name;
     struct var_type *type;
-    struct struct_field_list *tail;
+    struct field_list *tail;
 };
 
 struct func_param_list {
