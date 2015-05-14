@@ -47,4 +47,9 @@ struct func_param_list {
     struct func_param_list *tail;
 };
 
+struct func_arg_list {
+    struct var_type *var_type;
+    struct func_arg_list *tail;
+};
+
 #endif

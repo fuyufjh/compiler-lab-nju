@@ -47,7 +47,8 @@ struct st_node *delete_head(struct st_node **head) {
 }
 
 #include <stdio.h>
-#include <assert.h>
+#include "read_symbols.h"
+/*#include <assert.h>
 extern struct var_type int_type;
 void print_var_type(struct var_type *vt);
 void print_struct_type(struct struct_type *st);
@@ -58,10 +59,6 @@ void print_var_type(struct var_type *vt) {
         printf("  basic: %s\n", vt->basic == 273 ? "int" : "float");
         break;
     case ARRAY:
-        /*printf("  array: %d(", vt->array.size);
-        struct var_type *t = vt->array.elem;
-        print_var_type(t);
-        printf(")");*/
         printf(" array: ");
         print_var_type(vt->array.elem);
         struct array_size_list *sl = vt->array.size_list;
@@ -93,15 +90,16 @@ void print_struct_type(struct struct_type *st) {
     struct field_list *f = st->fields;
     while (f) {
         printf("%s :", f->name);
-        print_var_type(f->type);
         f = f->tail;
     }
     printf("  }\n");
-}
+}*/
+
 
 void insert_st_node(struct symbol *s) {
     printf("INSERT SYMBOL: %s\n", s->name);
-    print_var_type(s->type);
+    //print_var_type(s->type);
+    printf("  %s\n", get_var_type_str(s->type));
 
     unsigned int hash_val = hash_pjw(s->name);
     struct st_node* new_node = new(struct st_node);
@@ -114,7 +112,9 @@ void insert_st_node(struct symbol *s) {
 void insert_st_struct_node(struct struct_symbol *s) {
     // debug
     printf("INSERT STRUCT SYMBOL: %s\n", s->name);
-    print_struct_type(s->type);
+    static struct var_type svt = { STRUCTURE , {} };
+    svt.struct_type = s->type;
+    printf("  %s\n", get_var_type_str(&svt));
 
     unsigned int hash_val = hash_pjw(s->name);
     struct st_node* new_node = new(struct st_node);
@@ -141,10 +141,10 @@ void insert_struct_symbol(char* name, struct struct_type *st) {
 struct symbol *find_symbol(char *name) {
     unsigned int hash_val = hash_pjw(name);
     struct st_node *pnode = st_hashtable[hash_val];
-    while (strcmp(pnode->symbol->name, name) != 0) {
+    while (pnode && strcmp(pnode->symbol->name, name) != 0) {
         pnode = pnode->next;
-        if (pnode == NULL) return NULL;
     }
+    if (pnode == NULL) return NULL;
     return pnode->symbol;
 }
 

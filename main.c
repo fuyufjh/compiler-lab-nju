@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 
 #include "syntax.tab.h"
@@ -10,14 +11,27 @@ int no_error = 1;
 
 int main(int argc, char* argv[]) {
     if (argc <= 1) return 1;
-    FILE* f = fopen(argv[1], "r");
-    if (f == NULL) {
+    FILE* fp = fopen(argv[1], "r");
+    if (fp == NULL) {
         perror(argv[1]);
         return 1;
     }
-    yyrestart(f);
+    yyrestart(fp);
     yyparse();
-    if (no_error) print_ast(ast_root, 0);
+    if (!no_error) {
+        fclose(fp);
+        return -1;
+    }
+    rewind(fp);
+    fseek(fp ,0L ,SEEK_END);
+    int fsize = ftell(fp);
+    source_code = (char*) malloc(fsize + 1);
+
+    rewind(fp);
+    fread(source_code, fsize, 1, fp);
+    fclose(fp);
+
+    print_ast(ast_root, 0);
     read_symbols();
     return 0;
 }

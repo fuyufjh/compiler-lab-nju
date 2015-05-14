@@ -36,19 +36,27 @@ union ast_value {
 struct ast_node {
     int symbol;
     union ast_value value;
-    int lineno;
-
+    union {
+        struct {
+            int lineno;
+            int column;
+            int length;
+        };
+        char *text;
+    };
     struct ast_node *child;
     struct ast_node *peer;
     struct ast_node *parent;
 };
 
 struct ast_node *ast_root;
+char* source_code;
 
 void add_children_ast_node(struct ast_node *parent, int n, ...);
 struct ast_node *get_nth_child_ast_node(struct ast_node *root, int n);
 void print_ast(struct ast_node *root, int space);
 struct ast_node *make_ast_node_terminal(int st, union ast_value value);
 struct ast_node *make_ast_node_nonterminal(int st);
+char *get_ast_node_code(struct ast_node *node);
 
 #endif

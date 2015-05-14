@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 #include "ast.h"
 #include "syntax.tab.h"
 
@@ -17,8 +18,11 @@ void add_children_ast_node(struct ast_node *parent, int n, ...) {
         if (is_first_child) {
             parent->child = child;
             parent->lineno = child->lineno;
+            parent->column = child->column;
+            parent->length = child->length;
             is_first_child = 0;
         } else {
+            parent->length += child->length;
             prev->peer = child;
         }
         child->parent = parent;
@@ -71,17 +75,24 @@ void print_ast(struct ast_node *root, int space) {
     }
 }
 
+extern int yyleng;
+
 struct ast_node *make_ast_node_terminal(int st, union ast_value value) {
     struct ast_node *node = (struct ast_node *) malloc(sizeof(struct ast_node));
     node->symbol = st;
     node->value = value;
     node->lineno = yylineno;
+    node->column = yylloc.first_column;
+    node->length = yyleng;
     return node;
 }
 
 struct ast_node *make_ast_node_nonterminal(int st) {
     struct ast_node *node = (struct ast_node *) malloc(sizeof(struct ast_node));
     node->symbol = st;
+    node->lineno = yylineno;
+    node->column = yylloc.first_column;
+    node->length = yyleng;
     return node;
 }
 
@@ -113,17 +124,26 @@ int get_value_type(int node_type) {
     }
 }
 
-/*int main() {*/
-    /*root = make_node_nonterminal(Program, 1);*/
-    /*struct ast_node *node1 = make_node_nonterminal(ExtDecList, 1);*/
-    /*struct ast_node *node2 = make_node_nonterminal(ExtDecList, 2);*/
-    /*add_children(root, 2, node1, node2);*/
-    /*Value _v;*/
-    /*_v.str_value = "int";*/
-    /*struct ast_node *node3 = make_node_terminal(TYPE, STR_VALUE, _v);*/
-    /*_v.str_value = "float";*/
-    /*struct ast_node *node4 = make_node_terminal(TYPE, STR_VALUE, _v);*/
-    /*struct ast_node *node5 = make_node_terminal(TYPE, STR_VALUE, _v);*/
-    /*add_children(node1, 3, node3, node4, node5);*/
-    /*print_tree(root, 0);*/
-/*}*/
+char* get_str_src(int line, int column) {
+    char *p = source_code;
+    int l = 1, c = 1;
+    while (*p) {
+        if (l == line && c == column) break;
+        if (*p == '\n') {
+            l++;
+            c = 1;
+        } else {
+            c++;
+        }
+        p++;
+    }
+    return p;
+}
+
+char *get_ast_node_code(struct ast_node *node) {
+    char *text = (char*) malloc(node->length + 1);
+    strncpy(text, get_str_src(node->lineno, node->column), node->length);
+    text[node->length] = '\0';
+    return text;
+}
+
