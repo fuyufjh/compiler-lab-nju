@@ -100,9 +100,11 @@ void pop_scope() {
         while (p) {
             temp = p->s_next;
             if (p->prev == NULL) { // removable
-                struct st_node **ht_head = &st_hashtable[hash_pjw(p->symbol->name)];
-                struct st_node* node = delete_head(ht_head);
-                free(delete_node_scope_list(node));
+                /*struct st_node **ht_head = &st_hashtable[hash_pjw(p->symbol->name)];*/
+                /*struct st_node* node = delete_head(ht_head);*/
+                /*struct st_node* node = delete_node_hashtable(p);*/
+                /*free(delete_node_scope_list(node));*/
+                delete_symbol(p->symbol->name);
                 if (first == p) first = temp;
             }
             p = temp;

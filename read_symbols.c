@@ -393,7 +393,11 @@ struct field_list *dfs_dec_list(struct ast_node *root, struct var_type *vt) {
     assert(root->symbol == DecList);
     struct field_list *fl = dfs_dec(root->child, vt);
     if (child(root, 2)) {
-        fl->tail = dfs_dec_list(child(root, 2), vt);
+        if (fl != NULL) {
+            fl->tail = dfs_dec_list(child(root, 2), vt);
+        } else {
+            fl = dfs_dec_list(child(root, 2), vt);
+        }
     }
     return fl;
 }
