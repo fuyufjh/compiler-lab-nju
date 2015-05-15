@@ -10,7 +10,7 @@ void read_symbols();
 void dfs(struct ast_node *root);
 void dfs_ext_def(struct ast_node *root);
 void dfs_ext_dec_list(struct ast_node *root, struct var_type *t);
-void dfs_fun_dec(struct ast_node *root, struct var_type *ret);
+void dfs_fun_dec(struct ast_node *root, struct var_type *ret, bool dec_only);
 struct func_param_list *dfs_var_list(struct ast_node *root);
 struct var_type *dfs_param_dec(struct ast_node *root, char **name);
 struct var_type *dfs_var_dec(struct ast_node *root, char **name, struct var_type *vt);

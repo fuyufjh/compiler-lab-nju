@@ -1,7 +1,5 @@
-#include <stdlib.h>
-#include <stdio.h>
+#include "common.h"
 #include <stdarg.h>
-#include <string.h>
 #include "ast.h"
 #include "syntax.tab.h"
 

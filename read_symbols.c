@@ -1,47 +1,12 @@
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
 #include <stdarg.h>
 #include "common.h"
 #include "syntax.tab.h"
+#include "symbol_table.h"
 #include "read_symbols.h"
 
 #define child(node, n) \
     (n == 0 ? node->child : get_nth_child_ast_node(node, n))
 static struct var_type *func_ret_type;
-
-#include <stdio.h>
-
-const char *error_format_str[];
-
-void print_error(int error_type, struct ast_node *node, ...) {
-    printf("Error type %d at Line %d: ", error_type, node->lineno);
-    va_list ap;
-    va_start(ap, node);
-    vprintf(error_format_str[error_type], ap);
-    printf("\n");
-}
-
-const char *error_format_str[] = {
-    NULL,
-    "Undefined variable \"%s\".",
-    "Undefined function \"%s\".",
-    "Redefined variable \"%s\".",
-    "Redefined function \"%s\".",
-    "Type mismatched for assignment.",
-    "The left-hand side of an assignment must be a variable.",
-    "Type mismatched for operands.",
-    "Type mismatched for return.",
-    "Function \"%s(%s)\" is not applicable for arguments \"(%s)\".",
-    "\"%s\" is not an array.",
-    "\"%s\" is not a function.",
-    "\"%s\" is not an integer.",
-    "Illegal use of \".\".",
-    "Non-existent field \"%s\".",
-    "Redefined field \"%s\".",
-    "Duplicated name \"%s\".",
-    "Undefined structure \"%s\"."
-};
 
 #define VAR_TYPE_STR_SIZE 1024
 
@@ -53,7 +18,8 @@ char* get_var_type_str(struct var_type *vt) {
         strcpy(vt_str, vt->basic == INT ? "int" : "float");
         break;
     case ARRAY:
-        sprintf(vt_str, "%s", get_var_type_str(vt->array.elem));
+        sprintf(vt_str, "%s", to_free = get_var_type_str(vt->array.elem));
+        free(to_free);
         struct array_size_list *sl = vt->array.size_list;
         while (sl != NULL) {
             sprintf(buf, "[%d]", sl->size);
@@ -65,18 +31,21 @@ char* get_var_type_str(struct var_type *vt) {
         strcpy(vt_str, "struct {");
         struct field_list *fl = vt->struct_type->fields;
         while (fl != NULL) {
-            sprintf(buf, "%s %s; ", get_var_type_str(fl->type), fl->name);
+            sprintf(buf, "%s %s; ", to_free = get_var_type_str(fl->type), fl->name);
+            free(to_free);
             strcat(vt_str, buf);
             fl = fl->tail;
         }
         strcat(vt_str, "}");
         break;
     case FUNCTION:
-        strcpy(vt_str, get_var_type_str(vt->func.ret));
+        strcpy(vt_str, to_free = get_var_type_str(vt->func.ret));
+        free(to_free);
         strcat(vt_str, " <function>(");
         struct func_param_list *p = vt->func.params;
         while (p) {
-            strcat(vt_str, get_var_type_str(p->type));
+            strcat(vt_str, to_free = get_var_type_str(p->type));
+            free(to_free);
             if (p->tail) strcat(vt_str, ", ");
             p = p->tail;
         }
@@ -102,6 +71,16 @@ bool var_type_equal(struct var_type *a, struct var_type *b) {
         return false;
     }
     return false;
+}
+
+bool params_equal(struct func_param_list *pl_a, struct func_param_list *pl_b) {
+    struct func_param_list *p_a = pl_a, *p_b = pl_b;
+    while (p_a || p_b) {
+        if (!var_type_equal(p_a->type, p_b->type)) return false;
+        p_a = p_a->tail;
+        p_b = p_b->tail;
+    }
+    return p_a == NULL && p_b == NULL;
 }
 
 struct field_list *get_field_list(struct field_list *head, char* name) {
@@ -170,19 +149,25 @@ void dfs_ext_def(struct ast_node *root) {
     case SEMI:
         break;
     // ExtDef: Specifier FunDec CompSt
+    // ExtDef: Specifier FunDec SEMI
     case FunDec:
         func_ret_type = var_type;
         push_scope();
-        dfs_fun_dec(child(root, 1), var_type);
-        dfs_comp_st(child(root, 2));
+        if (child(root, 2)->symbol == CompSt) {
+            dfs_fun_dec(child(root, 1), var_type, false);
+            dfs_comp_st(child(root, 2));
+        } else {
+            dfs_fun_dec(child(root, 1), var_type, true);
+        }
         pop_scope();
         func_ret_type = NULL;
         break;
     }
 }
 
-void dfs_fun_dec(struct ast_node *root, struct var_type *ret) {
+void dfs_fun_dec(struct ast_node *root, struct var_type *ret, bool dec_only) {
     assert(root->symbol == FunDec);
+    struct symbol *symbol;
     struct var_type *vt = new(struct var_type);
     vt->kind = FUNCTION;
     vt->func.params = NULL;
@@ -196,8 +181,37 @@ void dfs_fun_dec(struct ast_node *root, struct var_type *ret) {
             p = p->tail;
         }
     }
-    if (!insert_symbol(name, vt)) {
-        print_error(4, root->child, name);
+    if (dec_only) {
+        set_declared_scope();
+        if ((symbol = find_symbol(name)) != NULL) {
+            if (symbol->type->kind != FUNCTION) {
+                print_error(4, root->child, name);
+            } else {
+                struct func_param_list *pl_dec = symbol->type->func.params;
+                struct func_param_list *pl_new = vt->func.params;
+                if (!params_equal(pl_dec, pl_new)) {
+                    print_error(19, root, name);
+                }
+                // Well, such boring code
+            }
+        } else {
+            insert_func_symbol(name, vt, root);
+        }
+        unset_declared_scope();
+    } else {
+        // find declaration and remove it, if existed
+        if ((symbol = find_symbol(name)) && symbol->scope == DECLARED) {
+            struct func_param_list *pl_dec = symbol->type->func.params;
+            struct func_param_list *pl_new = vt->func.params;
+            if (!params_equal(pl_dec, pl_new)) {
+                print_error(19, root, name);
+            } else {
+                delete_symbol(name);
+            }
+        }
+        if (!insert_func_symbol(name, vt, root)) {
+            print_error(4, root->child, name);
+        }
     }
 }
 
@@ -221,7 +235,10 @@ struct var_type *dfs_param_dec(struct ast_node *root, char **name) {
     assert(root->symbol == ParamDec);
     struct var_type *spec_t = dfs_specifier(root->child);
     if (spec_t == NULL) return NULL;
-    return dfs_var_dec(child(root, 1), name, spec_t);
+    if (child(root, 1)) {
+        dfs_var_dec(child(root, 1), name, spec_t);
+    }
+    return spec_t;
 }
 
 void dfs_ext_dec_list(struct ast_node *root, struct var_type *spec_t) {
@@ -388,7 +405,11 @@ struct field_list *dfs_dec(struct ast_node *root, struct var_type *vt) {
     fl->type = dfs_var_dec(root->child, &fl->name, vt);
     fl->tail = NULL;
     if (!insert_symbol(fl->name, fl->type)) {
-        print_error(15, root->child, fl->name);
+        if (func_ret_type == NULL) { // now in struct
+            print_error(15, root->child, fl->name);
+        } else { // now in function
+            print_error(3, root->child, fl->name);
+        }
         free(fl);
         return NULL;
     }
@@ -500,6 +521,8 @@ struct var_type *dfs_exp(struct ast_node *root) {
             } else {
                 return field_vt;
             }
+        case LP:
+            goto ID_LP_RP;
         default: // Exp Op Exp  Op = AND, OR, PLUS, MINUS ...
             left = dfs_exp(child(root, 0));
             right = dfs_exp(child(root, 2));
@@ -512,6 +535,7 @@ struct var_type *dfs_exp(struct ast_node *root) {
         }
     } else if (child(root, 0)->symbol == ID) {
         // ID LP Args RP
+ID_LP_RP:
         name = dfs_id(root->child);
         symbol = find_symbol(name);
         if (symbol == NULL) {
@@ -522,7 +546,10 @@ struct var_type *dfs_exp(struct ast_node *root) {
             print_error(11, child(root, 0), get_ast_node_code(child(root, 0)));
             return NULL;
         }
-        struct func_arg_list *arg_list = dfs_args(child(root, 2));
+        struct func_arg_list *arg_list = NULL;
+        if (child(root, 2)->symbol == Args) {
+            arg_list = dfs_args(child(root, 2));
+        }
         struct func_param_list *param_list = symbol->type->func.params;
         if (!params_args_equal(param_list, arg_list)) {
             // Processing arg_str

@@ -4,6 +4,9 @@
 struct symbol {
     char* name;
     struct var_type *type;
+    int scope;
+    // Below is for function symbol only
+    struct ast_node *ast_node;
 };
 
 struct var_type {
@@ -44,7 +47,7 @@ struct field_list {
 
 struct func_param_list {
     struct var_type *type;
-    char *name;
+    char *name; // Optional
     struct func_param_list *tail;
 };
 

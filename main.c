@@ -33,5 +33,6 @@ int main(int argc, char* argv[]) {
 
     print_ast(ast_root, 0);
     read_symbols();
+    check_declared_fun();
     return 0;
 }

@@ -69,6 +69,10 @@ ExtDef: Specifier ExtDecList SEMI {
     $$ = make_ast_node_nonterminal(ExtDef);
     add_children_ast_node($$, 3, $1, $2, $3);
     }
+    | Specifier FunDec SEMI {
+    $$ = make_ast_node_nonterminal(ExtDef);
+    add_children_ast_node($$, 3, $1, $2, $3);
+    }
     | error SEMI { yyerrok; }
     ;
 ExtDecList: VarDec {
@@ -143,6 +147,10 @@ VarList: ParamDec COMMA VarList {
 ParamDec: Specifier VarDec {
     $$ = make_ast_node_nonterminal(ParamDec);
     add_children_ast_node($$, 2, $1, $2);
+    }
+    | Specifier {
+    $$ = make_ast_node_nonterminal(ParamDec);
+    add_children_ast_node($$, 2, $1);
     }
     ;
 
