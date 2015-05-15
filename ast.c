@@ -82,6 +82,11 @@ struct ast_node *make_ast_node_terminal(int st, union ast_value value) {
     node->lineno = yylineno;
     node->column = yylloc.first_column;
     node->length = yyleng;
+    if (st == ID) {
+        node->left_value = DEPENDS_ON_ID;
+    } else {
+        node->left_value = false;
+    }
     return node;
 }
 
@@ -91,6 +96,7 @@ struct ast_node *make_ast_node_nonterminal(int st) {
     node->lineno = yylineno;
     node->column = yylloc.first_column;
     node->length = yyleng;
+    node->left_value = false; // If ture, modify it later
     return node;
 }
 

@@ -58,6 +58,7 @@ char* get_var_type_str(struct var_type *vt) {
 }
 
 bool var_type_equal(struct var_type *a, struct var_type *b) {
+    if (a == NULL || b == NULL) return false;
     if (a == b) return true;
     if (a->kind != b->kind) return false;
     switch (a->kind) {
@@ -486,6 +487,7 @@ struct var_type *dfs_exp(struct ast_node *root) {
         switch (child(root, 0)->symbol) {
         case MINUS:
             vt = dfs_exp(child(root, 1));
+            if (vt == NULL) return NULL;
             if (vt->kind != BASIC) {
                 print_error(7, child(root, 1));
                 return NULL;
@@ -494,6 +496,7 @@ struct var_type *dfs_exp(struct ast_node *root) {
             }
         case NOT:
             vt = dfs_exp(child(root, 1));
+            if (vt == NULL) return NULL;
             if (vt->kind != BASIC || vt->basic != INT) {
                 print_error(7, child(root, 1));
                 return NULL;
@@ -509,11 +512,23 @@ struct var_type *dfs_exp(struct ast_node *root) {
             left = dfs_exp(child(root, 0));
             right = dfs_exp(child(root, 2));
             if (left == NULL || right == NULL) return NULL;
-            bool left_value = false;
-            struct ast_node *lnode = root->child;
+            struct ast_node *lnode = root->child, *p_dep = lnode;
+            int left_value = lnode->left_value;
             // Judge left value is hard!!
-            if (lnode->child->symbol == ID && !lnode->child->peer) left_value = true;
-            if (lnode->child->symbol == Exp && child(lnode, 1)->symbol == LB) left_value = true;
+            /*if (lnode->child->symbol == ID && !lnode->child->peer) left_value = true;*/
+            /*if (lnode->child->symbol == Exp && child(lnode, 1)->symbol == LB) left_value = true;*/
+            while (p_dep->left_value == DEPENDS_ON_CHILD) {
+                p_dep = child(p_dep, p_dep->left_value_depends_child);
+            }
+            if (p_dep->left_value == DEPENDS_ON_ID) {
+                assert(p_dep->symbol == ID);
+                struct symbol *s_dep = find_symbol(p_dep->value.str_value);
+                if (s_dep && s_dep->type->kind != FUNCTION) {
+                    left_value = true;
+                }
+            } else {
+                left_value = p_dep->left_value;
+            }
             if (left_value == false) {
                 print_error(6, child(root, 0));
                 return NULL;
@@ -525,6 +540,7 @@ struct var_type *dfs_exp(struct ast_node *root) {
             return left;
         case DOT:
             vt = dfs_exp(child(root, 0));
+            if (vt == NULL) return NULL;
             if (vt->kind != STRUCTURE) {
                 print_error(13, child(root, 0));
                 return NULL;

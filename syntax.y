@@ -1,5 +1,5 @@
 %{
-#include <stdlib.h>
+#include "common.h"
 #include "ast.h"
 typedef struct ast_node* AST_NODE;
 #define YYSTYPE AST_NODE
@@ -262,6 +262,8 @@ Exp: Exp ASSIGNOP Exp {
     | LP Exp RP {
     $$ = make_ast_node_nonterminal(Exp);
     add_children_ast_node($$, 3, $1, $2, $3);
+    $$->left_value = DEPENDS_ON_CHILD;
+    $$->left_value_depends_child = 1;
     }
     | MINUS Exp {
     $$ = make_ast_node_nonterminal(Exp);
@@ -282,14 +284,19 @@ Exp: Exp ASSIGNOP Exp {
     | Exp LB Exp RB {
     $$ = make_ast_node_nonterminal(Exp);
     add_children_ast_node($$, 4, $1, $2, $3, $4);
+    $$->left_value = true;
     }
     | Exp DOT ID {
     $$ = make_ast_node_nonterminal(Exp);
     add_children_ast_node($$, 3, $1, $2, $3);
+    $$->left_value = DEPENDS_ON_CHILD;
+    $$->left_value_depends_child = 0;
     }
     | ID {
     $$ = make_ast_node_nonterminal(Exp);
     add_children_ast_node($$, 1, $1);
+    $$->left_value = DEPENDS_ON_CHILD;
+    $$->left_value_depends_child = 0;
     }
     | INT {
     $$ = make_ast_node_nonterminal(Exp);

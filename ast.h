@@ -36,14 +36,13 @@ union ast_value {
 struct ast_node {
     int symbol;
     union ast_value value;
-    union {
-        struct {
-            int lineno;
-            int column;
-            int length;
-        };
-        char *text;
+    struct {
+        int lineno;
+        int column;
+        int length;
     };
+    enum { DEPENDS_ON_CHILD = 2, DEPENDS_ON_ID = 3 } left_value;
+    int left_value_depends_child;
     struct ast_node *child;
     struct ast_node *peer;
     struct ast_node *parent;
