@@ -66,7 +66,17 @@ bool var_type_equal(struct var_type *a, struct var_type *b) {
     case ARRAY:
         return false;
     case STRUCTURE:
-        return a->struct_type == b->struct_type;
+        //return a->struct_type == b->struct_type;
+        if (a->struct_type == b->struct_type) return true;
+        struct field_list *fa = a->struct_type->fields;
+        struct field_list *fb = b->struct_type->fields;
+        while (fa && fb) {
+            if (!var_type_equal(fa->type, fb->type)) return false;
+            fa = fa->tail;
+            fb = fb->tail;
+        }
+        if (fa || fb) return false;
+        return true;
     case FUNCTION:
         return false;
     }
@@ -330,9 +340,11 @@ struct struct_type *dfs_struct_specifier(struct ast_node *root) {
     // StructSpecifier: STRUCT Tag
     case Tag:
         name = dfs_tag(child(root, 1));
-        st = find_struct_symbol(name)->type;
-        if (st == NULL) {
+        struct struct_symbol *symbol = find_struct_symbol(name);
+        if (symbol != NULL) st = symbol->type;
+        else {
             print_error(17, child(root, 1), name);
+            return NULL;
         }
         break;
     }

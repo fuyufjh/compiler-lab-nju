@@ -1,6 +1,7 @@
 #include "common.h"
 #include "symbol_type.h"
 #include "symbol_table.h"
+#include "error.h"
 
 #define HASH_MASK 0x3fff
 
@@ -283,10 +284,10 @@ struct symbol *find_symbol(char *name) {
 struct struct_symbol *find_struct_symbol(char* name) {
     unsigned int hash_val = hash_pjw(name);
     struct st_node *pnode = st_struct_hashtable[hash_val];
-    while (strcmp(pnode->struct_symbol->name, name) != 0) {
+    while (pnode && strcmp(pnode->struct_symbol->name, name) != 0) {
         pnode = pnode->next;
-        if (pnode == NULL) return NULL;
     }
+    if (pnode == NULL) return NULL;
     return pnode->struct_symbol;
 }
 
