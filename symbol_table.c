@@ -1,6 +1,7 @@
 #include "common.h"
 #include "symbol_type.h"
 #include "symbol_table.h"
+#include "read_symbols.h"
 #include "error.h"
 
 #define HASH_MASK 0x3fff
@@ -78,8 +79,9 @@ struct st_node *delete_node_scope_list(struct st_node* node) {
 }
 
 void delete_symbol(char *name) {
-    printf("DELETE SYMBOL: %s\n", name);
-
+    if (flag_verbose) {
+        printf("[INFO] Delete symbol \"%s\"\n", name);
+    }
     struct st_node *p = st_hashtable[hash_pjw(name)];
     while (strcmp(p->symbol->name, name) != 0) {
         p = p->next;
@@ -91,7 +93,6 @@ void delete_symbol(char *name) {
 void push_scope() {
     scope_level++;
     assert(scope_level < MAX_SCOPE_NUM);
-    //st_scope_stack[scope_level] = NULL;
 };
 
 void pop_scope() {
@@ -101,10 +102,6 @@ void pop_scope() {
         while (p) {
             temp = p->s_next;
             if (p->prev == NULL) { // removable
-                /*struct st_node **ht_head = &st_hashtable[hash_pjw(p->symbol->name)];*/
-                /*struct st_node* node = delete_head(ht_head);*/
-                /*struct st_node* node = delete_node_hashtable(p);*/
-                /*free(delete_node_scope_list(node));*/
                 delete_symbol(p->symbol->name);
                 if (first == p) first = temp;
             }
@@ -128,7 +125,6 @@ void unset_declared_scope() {
 }
 
 void insert_to_stack(struct st_node *node, int scope) {
-    //node->s_level = scope_level;
     struct st_node **head = &st_scope_stack[scope];
     if (*head == NULL) {
         *head = node;
@@ -141,55 +137,6 @@ void insert_to_stack(struct st_node *node, int scope) {
         node->s_prev = NULL;
     }
 }
-
-#include <stdio.h>
-#include "read_symbols.h"
-/*#include <assert.h>
-extern struct var_type int_type;
-void print_var_type(struct var_type *vt);
-void print_struct_type(struct struct_type *st);
-
-void print_var_type(struct var_type *vt) {
-    switch (vt->kind) {
-    case BASIC:
-        printf("  basic: %s\n", vt->basic == 273 ? "int" : "float");
-        break;
-    case ARRAY:
-        printf(" array: ");
-        print_var_type(vt->array.elem);
-        struct array_size_list *sl = vt->array.size_list;
-        while (sl != NULL) {
-            printf("%d ", sl->size);
-            sl = sl->next;
-        }
-        printf("\n");
-        break;
-    case STRUCTURE:
-        print_struct_type(vt->struct_type);
-        break;
-    case FUNCTION:
-        printf("  function: \n  return: ");
-        print_var_type(vt->func.ret);
-        struct func_param_list *p = vt->func.params;
-        printf("  [\n");
-        while (p) {
-            print_var_type(p->type);
-            p = p->tail;
-        }
-        printf("  ]\n");
-        break;
-    }
-}
-
-void print_struct_type(struct struct_type *st) {
-    printf("  struct: {\n");
-    struct field_list *f = st->fields;
-    while (f) {
-        printf("%s :", f->name);
-        f = f->tail;
-    }
-    printf("  }\n");
-}*/
 
 struct st_node *find_node_in_scope(char *name, int scope) {
     struct st_node *p = st_hashtable[hash_pjw(name)];
@@ -211,16 +158,14 @@ struct st_node *find_struct_symbol_node(char* name) {
 
 bool insert_st_node(struct symbol *s) {
     if (find_node_in_scope(s->name, s->scope)) return false;
-    printf("INSERT SYMBOL: %s\n", s->name);
-    //print_var_type(s->type);
-    printf("  %s\n", to_free = get_var_type_str(s->type));
-    free(to_free);
-
+    if (flag_verbose) {
+        printf("[INFO] Insert symbol \"%s\", which is ", s->name);
+        printf("%s\n", to_free = get_var_type_str(s->type));
+        free(to_free);
+    }
     unsigned int hash_val = hash_pjw(s->name);
     struct st_node* new_node = new(struct st_node);
     new_node->symbol = s;
-    //new_node->next = NULL;
-    //new_node->prev = NULL;
     insert_head(&st_hashtable[hash_val], new_node);
     insert_to_stack(new_node, s->scope);
     return true;
@@ -228,13 +173,13 @@ bool insert_st_node(struct symbol *s) {
 
 bool insert_st_struct_node(struct struct_symbol *s) {
     if (find_struct_symbol_node(s->name)) return false;
-    // debug
-    printf("INSERT STRUCT SYMBOL: %s\n", s->name);
-    static struct var_type svt = { STRUCTURE , {} };
-    svt.struct_type = s->type;
-    printf("  %s\n", to_free = get_var_type_str(&svt));
-    free(to_free);
-
+    if (flag_verbose) {
+        printf("[INFO] Insert struct symbol \"%s\", which is ", s->name);
+        static struct var_type svt = { STRUCTURE , {} };
+        svt.struct_type = s->type;
+        printf("%s\n", to_free = get_var_type_str(&svt));
+        free(to_free);
+    }
     unsigned int hash_val = hash_pjw(s->name);
     struct st_node* new_node = new(struct st_node);
     new_node->struct_symbol = s;

@@ -3,6 +3,7 @@
 #include "syntax.tab.h"
 #include "symbol_table.h"
 #include "read_symbols.h"
+#include "error.h"
 
 #define child(node, n) \
     (n == 0 ? node->child : get_nth_child_ast_node(node, n))
@@ -67,7 +68,8 @@ bool var_type_equal(struct var_type *a, struct var_type *b) {
     case ARRAY:
         return false;
     case STRUCTURE:
-        //return a->struct_type == b->struct_type;
+        // If you want the Name-Equal, rewrite this case statement as below:
+        //     return a->struct_type == b->struct_type;
         if (a->struct_type == b->struct_type) return true;
         struct field_list *fa = a->struct_type->fields;
         struct field_list *fb = b->struct_type->fields;
@@ -437,13 +439,6 @@ void dfs_comp_st(struct ast_node *root) {
     assert(root->symbol == CompSt);
     if (child(root, 1)->symbol == DefList) {
         dfs_def_list(child(root, 1));
-        /*struct field_list *fields = dfs_def_list(child(root, 1)), *p = fields;
-        while (p != NULL) {
-            if (!insert_symbol(p->name, p->type)) {
-                print_error(3, child(root, 1), p->name);
-            }
-            p = p->tail;
-        }*/
     }
     if (child(root, 2) && child(root,2)->symbol == StmtList) {
         dfs(child(root, 2));
@@ -514,9 +509,6 @@ struct var_type *dfs_exp(struct ast_node *root) {
             if (left == NULL || right == NULL) return NULL;
             struct ast_node *lnode = root->child, *p_dep = lnode;
             int left_value = lnode->left_value;
-            // Judge left value is hard!!
-            /*if (lnode->child->symbol == ID && !lnode->child->peer) left_value = true;*/
-            /*if (lnode->child->symbol == Exp && child(lnode, 1)->symbol == LB) left_value = true;*/
             while (p_dep->left_value == DEPENDS_ON_CHILD) {
                 p_dep = child(p_dep, p_dep->left_value_depends_child);
             }

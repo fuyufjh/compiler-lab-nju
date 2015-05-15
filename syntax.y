@@ -3,6 +3,10 @@
 #include "ast.h"
 typedef struct ast_node* AST_NODE;
 #define YYSTYPE AST_NODE
+
+int yylex (void);
+void yyerror (const char *);
+
 %}
 %locations
 %define parse.error verbose

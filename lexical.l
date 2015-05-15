@@ -54,7 +54,7 @@ E   [Ee][+-]?{D}+
         if (c2 == '\n') yylineno++;
         c1 = c2;
         c2 = input();
-    } while (c1 != '*' && c1 || c2 != '/' && c2);
+    } while ((c1 != '*' && c1) || (c2 != '/' && c2));
 }
 
 struct { MAKE_NODE(STRUCT) }
@@ -103,7 +103,7 @@ while { MAKE_NODE(WHILE) }
 }
 %%
 extern int no_error;
-yyerror(char* s) {
+void yyerror(char* s) {
     no_error = 0;
     printf("Error type B at Line %d: %s\n", yylloc.first_line, s);
 }

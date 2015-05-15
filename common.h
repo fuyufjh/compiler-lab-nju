@@ -1,3 +1,6 @@
+#ifndef _COMMON_H
+#define _COMMON_H
+
 // General header files
 #include <stdlib.h>
 #include <string.h>
@@ -10,5 +13,11 @@
 #define true 1
 #define false 0
 
+// Global flags
+bool flag_print_ast;
+bool flag_verbose;
+
 // Others
 char *to_free;
+
+#endif
