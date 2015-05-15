@@ -504,7 +504,7 @@ struct var_type *dfs_exp(struct ast_node *root) {
                 return vt;
             }
         }
-    } else if (child(root, 3) == NULL) {
+    } else if (child(root, 3) == NULL) { // num of children = 3
         switch (child(root, 1)->symbol) {
         case Exp: // LP Exp RP
             return dfs_exp(child(root, 1));
@@ -562,6 +562,19 @@ struct var_type *dfs_exp(struct ast_node *root) {
             if (!var_type_equal(left, right)) {
                 print_error(7, root);
                 return NULL;
+            }
+            switch (child(root, 1)->symbol) {
+            default:
+                if (left->kind != BASIC) {
+                    print_error(7, root);
+                    return NULL;
+                }
+            case AND:
+            case OR:
+                if (left->basic != INT) {
+                    print_error(7, root);
+                    return NULL;
+                }
             }
             return &int_type;
         }
