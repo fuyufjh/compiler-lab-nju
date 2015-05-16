@@ -29,7 +29,7 @@ char* get_var_type_str(struct var_type *vt) {
         }
         break;
     case STRUCTURE:
-        strcpy(vt_str, "struct {");
+        strcpy(vt_str, "struct { ");
         struct field_list *fl = vt->struct_type->fields;
         while (fl != NULL) {
             sprintf(buf, "%s %s; ", to_free = get_var_type_str(fl->type), fl->name);
@@ -88,7 +88,7 @@ bool var_type_equal(struct var_type *a, struct var_type *b) {
 
 bool params_equal(struct func_param_list *pl_a, struct func_param_list *pl_b) {
     struct func_param_list *p_a = pl_a, *p_b = pl_b;
-    while (p_a || p_b) {
+    while (p_a && p_b) {
         if (!var_type_equal(p_a->type, p_b->type)) return false;
         p_a = p_a->tail;
         p_b = p_b->tail;
@@ -249,7 +249,7 @@ struct var_type *dfs_param_dec(struct ast_node *root, char **name) {
     struct var_type *spec_t = dfs_specifier(root->child);
     if (spec_t == NULL) return NULL;
     if (child(root, 1)) {
-        dfs_var_dec(child(root, 1), name, spec_t);
+        spec_t = dfs_var_dec(child(root, 1), name, spec_t); // array
     }
     return spec_t;
 }

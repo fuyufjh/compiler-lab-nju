@@ -238,7 +238,7 @@ struct struct_symbol *find_struct_symbol(char* name) {
 
 void check_declared_fun() {
     struct st_node *p = st_scope_stack[DECLARED];
-    if (p != NULL) {
+    while (p != NULL) {
         print_error(18, p->symbol->ast_node, p->symbol->name);
         p = p->s_next;
     }
