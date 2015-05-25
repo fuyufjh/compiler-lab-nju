@@ -346,6 +346,17 @@ struct struct_type *dfs_struct_specifier(struct ast_node *root) {
             print_error(16, child(root, 1), name);
         }
         break;
+    // StructSpecifier: STRUCT LC DefList RC
+    case LC:
+        st = new(struct struct_type);
+        if (child(root, 2) && child(root, 2)->symbol == DefList) {
+            push_scope();
+            st->fields = dfs_def_list(child(root, 2));
+            pop_scope();
+        } else {
+            st->fields = NULL;
+        }
+        break;
     // StructSpecifier: STRUCT Tag
     case Tag:
         name = dfs_tag(child(root, 1));
