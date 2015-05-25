@@ -14,6 +14,12 @@ static struct var_type *func_ret_type;
 char* get_var_type_str(struct var_type *vt) {
     char buf[VAR_TYPE_STR_SIZE];
     char vt_str[VAR_TYPE_STR_SIZE * 2];
+    if (vt == NULL) {
+        static char* unknown_str = "[UNKNOWN]";
+        char* ret = (char*) malloc(sizeof(char) * (strlen(unknown_str)+1));
+        strcpy(ret, unknown_str);
+        return ret;
+    }
     switch (vt->kind) {
     case BASIC:
         strcpy(vt_str, vt->basic == INT ? "int" : "float");
@@ -556,19 +562,22 @@ struct var_type *dfs_exp(struct ast_node *root) {
                 return NULL;
             }
             switch (child(root, 1)->symbol) {
-            default:
-                if (left->kind != BASIC) {
-                    print_error(7, root);
-                    return NULL;
-                }
             case AND:
             case OR:
                 if (left->basic != INT) {
                     print_error(7, root);
                     return NULL;
                 }
+            case PLUS:
+            case MINUS:
+            case STAR:
+            case DIV:
+                if (left->kind != BASIC) {
+                    print_error(7, root);
+                    return NULL;
+                }
             }
-            return &int_type;
+            return left;
         }
     } else if (child(root, 0)->symbol == ID) {
         // ID LP Args RP
