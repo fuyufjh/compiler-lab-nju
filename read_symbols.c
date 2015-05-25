@@ -429,6 +429,16 @@ struct field_list *dfs_dec(struct ast_node *root, struct var_type *vt) {
     struct field_list *fl = new(struct field_list);
     fl->type = dfs_var_dec(root->child, &fl->name, vt);
     fl->tail = NULL;
+    if (func_ret_type == NULL) { // now in struct
+        if (child(root, 2)) {
+            print_error(20, root);
+        }
+    } else if (child(root, 2)) {
+        struct var_type *exp_type = dfs_exp(child(root, 2));
+        if (!var_type_equal(exp_type, fl->type)) {
+            print_error(5, root);
+        }
+    }
     if (!insert_symbol(fl->name, fl->type)) {
         if (func_ret_type == NULL) { // now in struct
             print_error(15, root->child, fl->name);

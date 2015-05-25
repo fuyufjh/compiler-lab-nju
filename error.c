@@ -31,6 +31,7 @@ const char *error_format_str[] = {
     "Duplicated name \"%s\".",
     "Undefined structure \"%s\".",
     "Undefined function \"%s\"",
-    "Inconsistent declaration of function \"%s\""
+    "Inconsistent declaration of function \"%s\"",
+    "Initialized variable in structure"
 };
 
