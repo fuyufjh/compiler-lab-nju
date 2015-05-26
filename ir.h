@@ -11,6 +11,10 @@ struct ir_operand {
         OP_LABEL,
         OP_FUNCTION
     } kind;
+    enum {
+        OP_MDF_AND = 1,
+        OP_MDF_STAR = 2
+    } modifier;
     union {
         int no;
         int val_int;
@@ -27,9 +31,6 @@ struct ir_code {
         IR_SUB,
         IR_MUL,
         IR_DIV,
-        IR_GET_ADDRESS,
-        IR_GET_VALUE,
-        IR_ASSIGN_TO_ADDRESS,
         IR_GOTO,
         IR_IF_GOTO,
         IR_RETURN,
@@ -73,6 +74,10 @@ struct ir_list {
         struct ir_node *next;
     } *head, *tail;
 } ir_list_all;
+
+struct ir_operand *new_temp_var();
+struct ir_operand *new_variable();
+struct ir_operand *new_label();
 
 void add_ir_code(struct ir_list *list, struct ir_code *code);
 struct ir_list *concat_ir_list(struct ir_list *a, struct ir_list *b);

@@ -1,5 +1,31 @@
-#include "ir.h"
 #include <stdio.h>
+#include "ir.h"
+#include "common.h"
+
+static int count_temp_var;
+static int count_variable;
+static int count_label;
+
+struct ir_operand *new_temp_var() {
+    struct ir_operand *t = new(struct ir_operand);
+    t->kind = OP_TEMP_VAR;
+    t->no = count_temp_var++;
+    return t;
+}
+
+struct ir_operand *new_variable() {
+    struct ir_operand *t = new(struct ir_operand);
+    t->kind = OP_VARIABLE;
+    t->no = count_variable++;
+    return t;
+}
+
+struct ir_operand *new_label() {
+    struct ir_operand *t = new(struct ir_operand);
+    t->kind = OP_LABEL;
+    t->no = count_label++;
+    return t;
+}
 
 void add_ir_code(struct ir_list *list, struct ir_code *code) {
     struct ir_node *node = new(struct ir_node);
@@ -14,6 +40,8 @@ void add_ir_code(struct ir_list *list, struct ir_code *code) {
 }
 
 struct ir_list *concat_ir_list(struct ir_list *a, struct ir_list *b) {
+    if (a == NULL) return b;
+    if (b == NULL) return a;
     if (a->head == NULL || a->tail == NULL) {
         free(a);
         return b;
@@ -33,15 +61,24 @@ static FILE *out;
 static char *get_operand_str(struct ir_operand *op) {
     // DO NOT free the return value!
     static char buf[32];
+    char *modifier;
+    switch (op->modifier) {
+    case OP_MDF_AND:
+        modifier = "&"; break;
+    case OP_MDF_STAR:
+        modifier = "*"; break;
+    default:
+        modifier = ""; break;
+    }
     switch (op->kind) {
     case OP_VARIABLE:
-        sprintf(buf, "v%d", op->no);
+        sprintf(buf, "%sv%d", modifier, op->no);
         break;
     case OP_IMMEDIATE:
         sprintf(buf, "#%d", op->val_int);
         break;
     case OP_TEMP_VAR:
-        sprintf(buf, "t%d", op->no);
+        sprintf(buf, "%st%d", modifier, op->no);
         break;
     case OP_LABEL:
         sprintf(buf, "label%d", op->no);
@@ -80,15 +117,6 @@ void print_ir_code(struct ir_code *code) {
         break;
     case IR_DIV:
         fprintf(out, "%s := %s / %s", OP(dst), OP(src1), OP(src2));
-        break;
-    case IR_GET_ADDRESS:
-        fprintf(out, "%s := &%s", OP(dst), OP(src));
-        break;
-    case IR_GET_VALUE:
-        fprintf(out, "%s := *%s", OP(dst), OP(src));
-        break;
-    case IR_ASSIGN_TO_ADDRESS:
-        fprintf(out, "*%s := %s", OP(dst), OP(src));
         break;
     case IR_GOTO:
         fprintf(out, "GOTO %s", OP(op));
