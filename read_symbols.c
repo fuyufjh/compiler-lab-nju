@@ -72,7 +72,20 @@ bool var_type_equal(struct var_type *a, struct var_type *b) {
     case BASIC:
         return a->basic == b->basic;
     case ARRAY:
-        return false;
+        if (!var_type_equal(a->array.elem, b->array.elem)) return false;
+        struct array_size_list *sa = a->array.size_list;
+        struct array_size_list *sb = b->array.size_list;
+        while (sa && sb) {
+            // if you want compare the size of every dim, decomment following...
+            //   if (sa->size != sb->size) return false;
+            if (sa->next && sb->next && sa->size != sb->size) {
+                return false;
+            }
+            sa = sa->next;
+            sb = sb->next;
+        }
+        if (sa || sb) return false;
+        return true;
     case STRUCTURE:
         // If you want the Name-Equal, rewrite this case statement as below:
         //     return a->struct_type == b->struct_type;
