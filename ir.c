@@ -1,16 +1,31 @@
 #include "ir.h"
 #include <stdio.h>
 
-void add_ir_code(struct ir_code *code) {
+void add_ir_code(struct ir_list *list, struct ir_code *code) {
     struct ir_node *node = new(struct ir_node);
     node->code = code;
     node->next = NULL;
-    if (ir_list_head == NULL) {
-        ir_list_head = ir_list_tail = node;
+    if (list->head == NULL) {
+        list->head = list->tail = node;
     } else {
-        ir_list_tail->next = node;
-        ir_list_tail = node;
+        list->tail->next = node;
+        list->tail = node;
     }
+}
+
+struct ir_list *concat_ir_list(struct ir_list *a, struct ir_list *b) {
+    if (a->head == NULL || a->tail == NULL) {
+        free(a);
+        return b;
+    }
+    if (b->head == NULL || b->tail == NULL) {
+        free(b);
+        return a;
+    }
+    a->tail->next = b->head;
+    a->tail = b->head;
+    free(b);
+    return a;
 }
 
 static FILE *out;
@@ -42,7 +57,7 @@ char* relop_str[] = {
     "==", "!=", ">", "<", ">=", "<="
 };
 
-static void print_ir_code(struct ir_code *code) {
+void print_ir_code(struct ir_code *code) {
 #define OP(op) get_operand_str(code->op)
     switch (code->kind) {
     case IR_LABEL:
@@ -108,13 +123,13 @@ static void print_ir_code(struct ir_code *code) {
     fprintf(out, "\n");
 }
 
-void print_ir_list(FILE *fp) {
+void print_ir_list(struct ir_list *list, FILE *fp) {
 #ifndef IR_DEBUG
     out = fp;
 #else
     out = stdout;
 #endif
-    struct ir_node *p = ir_list_head;
+    struct ir_node *p = list->head;
     while (p != NULL) {
         print_ir_code(p->code);
         p = p->next;

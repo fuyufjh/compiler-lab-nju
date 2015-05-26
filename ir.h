@@ -67,12 +67,16 @@ struct ir_code {
     };
 };
 
-struct ir_node {
-    struct ir_code *code;
-    struct ir_node *next;
-} *ir_list_head, *ir_list_tail;
+struct ir_list {
+    struct ir_node {
+        struct ir_code *code;
+        struct ir_node *next;
+    } *head, *tail;
+} ir_list_all;
 
-void add_ir_code(struct ir_code *code);
-void print_ir_list();
+void add_ir_code(struct ir_list *list, struct ir_code *code);
+struct ir_list *concat_ir_list(struct ir_list *a, struct ir_list *b);
+void print_ir_code(struct ir_code *code);
+void print_ir_list(struct ir_list *list, FILE *fp);
 
 #endif
