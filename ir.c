@@ -27,6 +27,11 @@ struct ir_operand *new_label() {
     return t;
 }
 
+inline struct ir_list *create_ir_list(struct ir_code *code) {
+    struct ir_node *node = new(struct ir_node, code, NULL);
+    return new(struct ir_list, node, node);
+}
+
 void add_ir_code(struct ir_list *list, struct ir_code *code) {
     struct ir_node *node = new(struct ir_node);
     node->code = code;

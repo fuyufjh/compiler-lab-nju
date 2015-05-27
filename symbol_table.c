@@ -3,6 +3,7 @@
 #include "symbol_table.h"
 #include "read_symbols.h"
 #include "error.h"
+#include "ir.h"
 
 #define HASH_MASK 0x3fff
 
@@ -195,6 +196,7 @@ bool insert_symbol(char* name, struct var_type *vt) {
     s->type = vt;
     s->name = name;
     s->scope = scope_level;
+    s->operand = new_variable();
     return insert_st_node(s);
 }
 
@@ -204,6 +206,7 @@ bool insert_func_symbol(char* name, struct var_type *vt, struct ast_node *node) 
     s->type = vt;
     s->name = name;
     s->ast_node = node;
+    s->operand = new(struct ir_operand, OP_FUNCTION, .name=name);
     if (scope_level != DECLARED) s->scope = GLOBAL;
     else s->scope = DECLARED; // Only 2 scopes for function
     return insert_st_node(s);

@@ -79,6 +79,7 @@ struct ir_operand *new_temp_var();
 struct ir_operand *new_variable();
 struct ir_operand *new_label();
 
+inline struct ir_list *create_ir_list(struct ir_code *code);
 void add_ir_code(struct ir_list *list, struct ir_code *code);
 struct ir_list *concat_ir_list(struct ir_list *a, struct ir_list *b);
 void print_ir_code(struct ir_code *code);

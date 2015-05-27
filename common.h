@@ -14,9 +14,9 @@
 
 // WOW! I invented this! DIAO BAO LE!
 #define new(type, ...) ({\
-        type* t = (type*)malloc(sizeof(type));\
-        *t = (type){__VA_ARGS__};\
-        t; })
+        type* __t = (type*)malloc(sizeof(type));\
+        *__t = (type){__VA_ARGS__};\
+        __t; })
 
 // Global flags
 bool flag_print_ast;

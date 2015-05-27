@@ -7,6 +7,8 @@ struct symbol {
     int scope;
     // Below is for function symbol only
     struct ast_node *ast_node;
+    // Below is for variable symbol only
+    struct ir_operand *operand;
 };
 
 struct var_type {
