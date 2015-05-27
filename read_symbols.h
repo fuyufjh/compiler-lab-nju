@@ -1,9 +1,11 @@
 #ifndef _READ_SYMBOLS_H
 #define _READ_SYMBOLS_H
 
+#include "common.h"
 #include "symbol_table.h"
 #include "ast.h"
 #include "symbol_type.h"
+#include "ir.h"
 
 char* get_var_type_str(struct var_type *vt);
 void read_symbols();
@@ -26,7 +28,7 @@ struct field_list *dfs_def(struct ast_node *root);
 struct field_list *dfs_dec_list(struct ast_node *root, struct var_type *vt);
 struct field_list *dfs_dec(struct ast_node *root, struct var_type *vt);
 void dfs_comp_st(struct ast_node *root);
-struct var_type *dfs_exp(struct ast_node *root);
+struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op);
 struct func_arg_list *dfs_args(struct ast_node *root);
 void dfs_stmt(struct ast_node *root);
 

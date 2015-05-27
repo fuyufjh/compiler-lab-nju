@@ -69,23 +69,15 @@ struct ir_code {
         } relop;
         int size;
     };
-};
-
-struct ir_list {
-    struct ir_node {
-        struct ir_code *code;
-        struct ir_node *next;
-    } *head, *tail;
-} *ir_list_all;
+    struct ir_code *prev, *next;
+} *ir_list, *ir_list_tail;
 
 struct ir_operand *new_temp_var();
 struct ir_operand *new_variable();
 struct ir_operand *new_label();
 
-inline struct ir_list *create_ir_list(struct ir_code *code);
-void add_ir_code(struct ir_list *list, struct ir_code *code);
-struct ir_list *concat_ir_list(struct ir_list *a, struct ir_list *b);
+void add_ir_code(struct ir_code *code);
 void print_ir_code(struct ir_code *code);
-void print_ir_list(struct ir_list *list, FILE *fp);
+void print_ir_list(FILE *fp);
 
 #endif

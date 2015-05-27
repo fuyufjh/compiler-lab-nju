@@ -38,5 +38,5 @@ parser
 *.tab.c
 *.tab.h
 tags
-test/
+test*/
 *.cmm

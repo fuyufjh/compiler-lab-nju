@@ -27,6 +27,7 @@ struct ir_operand *new_label() {
     return t;
 }
 
+/*
 inline struct ir_list *create_ir_list(struct ir_code *code) {
     struct ir_node *node = new(struct ir_node, code, NULL);
     return new(struct ir_list, node, node);
@@ -60,6 +61,7 @@ struct ir_list *concat_ir_list(struct ir_list *a, struct ir_list *b) {
     free(b);
     return a;
 }
+*/
 
 static FILE *out;
 
@@ -100,8 +102,11 @@ char* relop_str[] = {
     "==", "!=", ">", "<", ">=", "<="
 };
 
+#pragma GCC diagnostic ignored "-Wsequence-point"
 void print_ir_code(struct ir_code *code) {
-#define OP(op) get_operand_str(code->op)
+    char* to_free[3];
+    int len = 0;
+#define OP(op) to_free[len++]=get_operand_str(code->op)
     switch (code->kind) {
     case IR_LABEL:
         fprintf(out, "LABEL %s :", OP(op));
@@ -154,19 +159,27 @@ void print_ir_code(struct ir_code *code) {
     default:
         exit(-1);
     }
+    while (len) free(to_free[--len]);
     fprintf(out, "\n");
 }
 
-void print_ir_list(struct ir_list *list, FILE *fp) {
-    if (list == NULL) return;
-#ifndef IR_DEBUG
+void print_ir_list(FILE *fp) {
+    if (ir_list == NULL) return;
     out = fp;
-#else
-    out = stdout;
-#endif
-    struct ir_node *p = list->head;
+    struct ir_code *p = ir_list;
     while (p != NULL) {
-        print_ir_code(p->code);
+        print_ir_code(p);
         p = p->next;
+    }
+}
+
+void add_ir_code(struct ir_code *code) {
+    if (ir_list == NULL) {
+        ir_list = ir_list_tail = code;
+        code->prev = code->next = NULL;
+    } else {
+        ir_list_tail->next = code;
+        code->prev = ir_list_tail;
+        ir_list_tail = code;
     }
 }

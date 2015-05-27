@@ -1,22 +1,52 @@
-#include <stdarg.h>
-#include "common.h"
+#include "read_symbols.h"
 #include "syntax.tab.h"
 #include "symbol_table.h"
-#include "read_symbols.h"
 #include "error.h"
-#include "translate.h"
-
-#include "ast.h"
 
 #define child(node, n) \
     (n == 0 ? node->child : get_nth_child_ast_node(node, n))
+inline int child_num(struct ast_node *node) {
+    int n = 0;
+    while (child(node, n)) n++;
+    return n;
+}
+//#define CODE(...) print_ir_code(new(struct ir_code, __VA_ARGS__))
+#define CODE(...) add_ir_code(new(struct ir_code, __VA_ARGS__))
+
 static struct var_type *func_ret_type;
-#define TRANSLATE(node) \
-    printf("===== %s =====\n", get_symbol_name(node->symbol)); \
-    print_ir_list(translate(node), stdout)
-    //ir_list_all = concat_ir_list(ir_list_all, translate(node))
 
 #define VAR_TYPE_STR_SIZE 1024
+
+struct ir_operand imme_zero = {OP_IMMEDIATE, .val_int=0};
+struct ir_operand imme_one  = {OP_IMMEDIATE, .val_int=1};
+
+extern bool no_error;
+
+enum relop_type get_relop(struct ast_node *root) {
+    assert(root->symbol == RELOP);
+    if (strcmp(root->value.str_value, "==") == 0) return RELOP_EQ;
+    if (strcmp(root->value.str_value, "!=") == 0) return RELOP_NEQ;
+    if (strcmp(root->value.str_value, ">" ) == 0) return RELOP_G;
+    if (strcmp(root->value.str_value, "<" ) == 0) return RELOP_L;
+    if (strcmp(root->value.str_value, ">=") == 0) return RELOP_GE;
+    if (strcmp(root->value.str_value, "<=") == 0) return RELOP_LE;
+    perror("Invalid rel-op string");
+    exit(1);
+}
+
+enum relop_type get_not_relop(struct ast_node *root) {
+    enum relop_type r = get_relop(root);
+    switch (r) {
+    case RELOP_EQ:  return RELOP_NEQ;
+    case RELOP_NEQ: return RELOP_EQ;
+    case RELOP_L:   return RELOP_GE;
+    case RELOP_GE:  return RELOP_L;
+    case RELOP_G:   return RELOP_LE;
+    case RELOP_LE:  return RELOP_G;
+    }
+    exit(2);
+}
+
 
 char* get_var_type_str(struct var_type *vt) {
     char buf[VAR_TYPE_STR_SIZE];
@@ -163,7 +193,7 @@ void dfs(struct ast_node *root) {
         dfs_comp_st(root);
         break;
     case Exp:
-        dfs_exp(root);
+        dfs_exp(root, NULL);
         break;
     case Stmt:
         dfs_stmt(root);
@@ -214,11 +244,11 @@ void dfs_fun_dec(struct ast_node *root, struct var_type *ret, bool dec_only) {
     char* name = dfs_id(root->child);
     if (child(root, 2)->symbol == VarList) {
         vt->func.params = dfs_var_list(child(root, 2));
-        struct func_param_list *p = vt->func.params;
-        while (p) {
-            insert_symbol(p->name, p->type);
-            p = p->tail;
-        }
+        /*struct func_param_list *p = vt->func.params;*/
+        /*while (p) {*/
+            /*insert_symbol(p->name, p->type);*/
+            /*p = p->tail;*/
+        /*}*/
     }
     if (dec_only) {
         set_declared_scope();
@@ -238,6 +268,17 @@ void dfs_fun_dec(struct ast_node *root, struct var_type *ret, bool dec_only) {
         }
         unset_declared_scope();
     } else {
+        struct ir_operand *func = new(struct ir_operand, OP_FUNCTION, .name=name);
+        CODE(IR_FUNCTION, .op=func);
+        if (child(root, 2)->symbol == VarList) {
+            struct func_param_list *p = vt->func.params;
+            while (p) {
+                insert_symbol(p->name, p->type);
+                struct ir_operand *op_var = find_symbol(p->name)->operand;
+                CODE(IR_PARAM, .op=op_var);
+                p = p->tail;
+            }
+        }
         // find declaration and remove it, if existed
         if ((symbol = find_symbol(name)) && symbol->scope == DECLARED) {
             struct func_param_list *pl_dec = symbol->type->func.params;
@@ -251,7 +292,6 @@ void dfs_fun_dec(struct ast_node *root, struct var_type *ret, bool dec_only) {
         if (!insert_func_symbol(name, vt, root)) {
             print_error(4, root->child, name);
         }
-        TRANSLATE(root);
     }
 }
 
@@ -259,7 +299,7 @@ struct func_param_list *dfs_var_list(struct ast_node *root) {
     assert(root->symbol == VarList);
     struct func_param_list *p = new(struct func_param_list);
     p->type = dfs_param_dec(root->child, &p->name);
-    if (child(root, 2)) {
+    if (child_num(root) == 3) {
         p->tail = dfs_var_list(child(root, 2));
     } else {
         p->tail = NULL;
@@ -460,16 +500,6 @@ struct field_list *dfs_dec(struct ast_node *root, struct var_type *vt) {
     struct field_list *fl = new(struct field_list);
     fl->type = dfs_var_dec(root->child, &fl->name, vt);
     fl->tail = NULL;
-    if (func_ret_type == NULL) { // now in struct
-        if (child(root, 2)) { // initializing is forbidden
-            print_error(20, root);
-        }
-    } else if (child(root, 2)) { // ASSIGNOP Exp
-        struct var_type *exp_type = dfs_exp(child(root, 2));
-        if (!var_type_equal(exp_type, fl->type)) {
-            print_error(5, root);
-        }
-    }
     if (!insert_symbol(fl->name, fl->type)) {
         if (func_ret_type == NULL) { // now in struct
             print_error(15, root->child, fl->name);
@@ -479,7 +509,19 @@ struct field_list *dfs_dec(struct ast_node *root, struct var_type *vt) {
         free(fl);
         return NULL;
     }
-    TRANSLATE(root);
+    if (func_ret_type == NULL) { // now in struct
+        if (child(root, 2)) { // initializing is forbidden
+            print_error(20, root);
+        }
+    } else if (child(root, 2)) { // VarDec ASSIGNOP Exp
+        assert(child(root, 0)->child->symbol == ID); // Only ID can be assigned
+        char *name = child(root, 0)->child->value.str_value;
+        struct ir_operand *op = find_symbol(name)->operand;
+        struct var_type *exp_type = dfs_exp(child(root, 2), op);
+        if (!var_type_equal(exp_type, fl->type)) {
+            print_error(5, root);
+        }
+    }
     return fl;
 }
 
@@ -504,12 +546,112 @@ bool params_args_equal(struct func_param_list *param, struct func_arg_list *arg)
     return true;
 }
 
-struct var_type *dfs_exp(struct ast_node *root) {
+struct var_type *dfs_exp_cond(struct ast_node *root, \
+        struct ir_operand *label_true, struct ir_operand *label_false) {
+    assert(root->symbol == Exp);
+    int n = child_num(root);
+    struct ir_operand *t1, *t2, *label1;
+    struct var_type *vt, *left, *right;
+    if (n == 3 && child(root, 1)->symbol == RELOP) {
+        left = dfs_exp(child(root, 0), t1 = new_temp_var());
+        right = dfs_exp(child(root, 2), t2 = new_temp_var());
+        if (left == NULL || right == NULL) return NULL;
+        if (!var_type_equal(left, right)) {
+            print_error(7, root);
+            return NULL;
+        }
+        if (label_true && label_false) {
+            CODE(IR_IF_GOTO, .src1=t1, .src2=t2, \
+                    .relop=get_relop(child(root, 1)), .dst=label_true);
+            CODE(IR_GOTO, .dst=label_false);
+        } else if (label_true) {
+            CODE(IR_IF_GOTO, .src1=t1, .src2=t2,\
+                    .relop=get_relop(child(root, 1)), .dst=label_true);
+        } else if (label_false) {
+            CODE(IR_IF_GOTO, .src1=t1, .src2=t2,\
+                    .relop=get_not_relop(child(root, 1)), .dst=label_false);
+        }
+        return left;
+    } else if (n == 3 && child(root, 1)->symbol == AND) {
+        if (label_false) {
+            left = dfs_exp_cond(child(root, 0), NULL, label_false);
+            right = dfs_exp_cond(child(root, 2), label_true, label_false);
+        } else {
+            left = dfs_exp_cond(child(root, 0), NULL, label1 = new_label());
+            right = dfs_exp_cond(child(root, 2), label_true, label_false);
+            CODE(IR_LABEL, .op=label1);
+        }
+        if (left == NULL || right == NULL) return NULL;
+        if (!var_type_equal(left, right)) {
+            print_error(7, root);
+            return NULL;
+        }
+        if (left->basic != INT) {
+            print_error(7, root);
+            return NULL;
+        }
+        return left;
+    } else if (n == 3 && child(root, 1)->symbol == OR) {
+        if (label_true) {
+            left = dfs_exp_cond(child(root, 0), label_true, NULL);
+            right = dfs_exp_cond(child(root, 2), label_true, label_false);
+        } else {
+            left = dfs_exp_cond(child(root, 0), label1 = new_label(), NULL);
+            right = dfs_exp_cond(child(root, 2), label_true, label_false);
+            CODE(IR_LABEL, .op=label1);
+        }
+        if (left == NULL || right == NULL) return NULL;
+        if (!var_type_equal(left, right)) {
+            print_error(7, root);
+            return NULL;
+        }
+        if (left->basic != INT) {
+            print_error(7, root);
+            return NULL;
+        }
+        return left;
+    } else if (n == 2 && child(root, 0)->symbol == NOT) {
+        vt = dfs_exp_cond(child(root, 1), label_false, label_true);
+        if (vt == NULL) return NULL;
+        if (vt->kind != BASIC || vt->basic != INT) {
+            print_error(7, child(root, 1));
+            return NULL;
+        }
+        return vt;
+    } else {
+        vt = dfs_exp(root, t1 = new_temp_var());
+        if (label_true && label_false) {
+            CODE(IR_IF_GOTO, .src1=t1, .src2=&imme_zero,\
+                        .relop=RELOP_NEQ, .dst=label_true);
+            CODE(IR_GOTO, .op=label_false);
+        } else if (label_true) {
+            CODE(IR_IF_GOTO, .src1=t1, .src2=&imme_zero,\
+                        .relop=RELOP_NEQ, .dst=label_true);
+        } else if (label_false) {
+            CODE(IR_IF_GOTO, .src1=t1, .src2=&imme_zero,\
+                        .relop=RELOP_EQ, .dst=label_false);
+        }
+        return vt;
+    }
+}
+
+struct ir_operand *translate_exp_lval(struct ast_node *root) {
+    assert(root->symbol == Exp);
+    assert(child(root, 0)->symbol == ID && child(root, 1) == NULL);
+    struct ast_node* id_node = child(root ,0);
+    return find_symbol(id_node->value.str_value)->operand;
+}
+
+struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
     assert(root->symbol == Exp);
     char* name;
     struct symbol *symbol;
     struct var_type *vt, *left, *right;
-    if (child(root, 1) == NULL) { // num of children = 1
+    struct ir_operand *t1, *t2, *label1;
+    enum ir_type ir_type;
+    switch (child_num(root)) {
+    int value;
+    case 1:
         switch (child(root, 0)->symbol) {
         case ID:
             name = dfs_id(child(root, 0));
@@ -518,42 +660,49 @@ struct var_type *dfs_exp(struct ast_node *root) {
                 print_error(1, child(root, 0), name);
                 return NULL;
             }
+            if (op) CODE(IR_ASSIGN, .dst=op, .src=symbol->operand);
             return symbol->type;
         case INT:
-            dfs(child(root, 0));
+            value = dfs_int(child(root, 0));
+            t1 = new(struct ir_operand, OP_IMMEDIATE, .val_int=value);
+            if (op) CODE(IR_ASSIGN, .dst=op, .src=t1);
             return &int_type;
         case FLOAT:
-            dfs(child(root, 0));
+            dfs_float(child(root, 0));
+            perror("Float value is not supported.");
+            exit(1);
             return &float_type;
         }
-    } else if (child(root, 2) == NULL) { // num of children = 2
+    case 2:
         switch (child(root, 0)->symbol) {
         case MINUS:
-            vt = dfs_exp(child(root, 1));
+            vt = dfs_exp(child(root, 1), t1 = new_temp_var());
             if (vt == NULL) return NULL;
             if (vt->kind != BASIC) {
                 print_error(7, child(root, 1));
                 return NULL;
-            } else {
-                return vt;
             }
+            CODE(IR_SUB, .dst=op, .src1=&imme_zero, .src2=t1);
+            return vt;
         case NOT:
-            vt = dfs_exp(child(root, 1));
+            if (op) CODE(IR_ASSIGN, .dst=op, .src=&imme_zero);
+            vt = dfs_exp(child(root, 1), label1 = new_label());
             if (vt == NULL) return NULL;
             if (vt->kind != BASIC || vt->basic != INT) {
                 print_error(7, child(root, 1));
                 return NULL;
-            } else {
-                return vt;
             }
+            if (op) CODE(IR_ASSIGN, .dst=op, .src=&imme_one);
+            CODE(IR_LABEL, .op=label1);
+            return vt;
         }
-    } else if (child(root, 3) == NULL) { // num of children = 3
+    case 3:
         switch (child(root, 1)->symbol) {
         case Exp: // LP Exp RP
-            return dfs_exp(child(root, 1));
+            return dfs_exp(child(root, 1), op);
         case ASSIGNOP:
-            left = dfs_exp(child(root, 0));
-            right = dfs_exp(child(root, 2));
+            left = dfs_exp(child(root, 0), NULL);
+            right = dfs_exp(child(root, 2), t2 = new_temp_var());
             if (left == NULL || right == NULL) return NULL;
             struct ast_node *lnode = root->child, *p_dep = lnode;
             int left_value = lnode->left_value;
@@ -577,9 +726,14 @@ struct var_type *dfs_exp(struct ast_node *root) {
                 print_error(5, root);
                 return NULL;
             }
+            t1 = translate_exp_lval(child(root, 0));
+            CODE(IR_ASSIGN, .dst=t1, .src=t2);
+            if (op) CODE(IR_ASSIGN, .dst=op, .src=t1);
             return left;
         case DOT:
-            vt = dfs_exp(child(root, 0));
+            perror("Struct is not supported.");
+            exit(1);
+            vt = dfs_exp(child(root, 0), NULL);
             if (vt == NULL) return NULL;
             if (vt->kind != STRUCTURE) {
                 print_error(13, child(root, 0));
@@ -590,38 +744,64 @@ struct var_type *dfs_exp(struct ast_node *root) {
             if (field_vt == NULL) {
                 print_error(14, child(root, 2), name);
                 return NULL;
-            } else {
-                return field_vt;
             }
+            return field_vt;
         case LP:
             goto ID_LP_RP;
-        default: // Exp Op Exp  Op = AND, OR, PLUS, MINUS ...
-            left = dfs_exp(child(root, 0));
-            right = dfs_exp(child(root, 2));
+        /*default: // Exp Op Exp  Op = AND, OR, PLUS, MINUS ...*/
+            /*left = dfs_exp(child(root, 0));*/
+            /*right = dfs_exp(child(root, 2));*/
+            /*if (left == NULL || right == NULL) return NULL;*/
+            /*if (!var_type_equal(left, right)) {*/
+                /*print_error(7, root);*/
+                /*return NULL;*/
+            /*}*/
+            /*switch (child(root, 1)->symbol) {*/
+            /*case AND:*/
+            /*case OR:*/
+                /*if (left->basic != INT) {*/
+                    /*print_error(7, root);*/
+                    /*return NULL;*/
+                /*}*/
+            /*case PLUS:*/
+            /*case MINUS:*/
+            /*case STAR:*/
+            /*case DIV:*/
+                /*if (left->kind != BASIC) {*/
+                    /*print_error(7, root);*/
+                    /*return NULL;*/
+                /*}*/
+            /*}*/
+            /*return left;*/
+        case PLUS:
+            ir_type = IR_ADD; goto ADD_SUB_MUL_DIV;
+        case MINUS:
+            ir_type = IR_SUB; goto ADD_SUB_MUL_DIV;
+        case STAR:
+            ir_type = IR_MUL; goto ADD_SUB_MUL_DIV;
+        case DIV:
+            ir_type = IR_DIV; goto ADD_SUB_MUL_DIV;
+ADD_SUB_MUL_DIV:
+            left = dfs_exp(child(root, 0), t1 = new_temp_var());
+            right = dfs_exp(child(root, 2), t2 = new_temp_var());
+            if (op) CODE(ir_type, .dst=op, .src1=t1, .src2=t2);
             if (left == NULL || right == NULL) return NULL;
             if (!var_type_equal(left, right)) {
                 print_error(7, root);
                 return NULL;
             }
-            switch (child(root, 1)->symbol) {
-            case AND:
-            case OR:
-                if (left->basic != INT) {
-                    print_error(7, root);
-                    return NULL;
-                }
-            case PLUS:
-            case MINUS:
-            case STAR:
-            case DIV:
-                if (left->kind != BASIC) {
-                    print_error(7, root);
-                    return NULL;
-                }
-            }
             return left;
+        case AND:
+        case OR:
+        case RELOP:
+            if (op) CODE(IR_ASSIGN, .dst=op, .src=&imme_zero);
+            vt = dfs_exp_cond(root, NULL, label1 = new_label());
+            if (op) CODE(IR_ASSIGN, .dst=op, .src=&imme_one);
+            CODE(IR_LABEL, .op=label1);
+            return vt;
         }
-    } else if (child(root, 0)->symbol == ID) {
+    }
+    if (child(root, 0)->symbol == ID) {
         // ID LP Args RP
 ID_LP_RP:
         name = dfs_id(root->child);
@@ -679,12 +859,30 @@ ID_LP_RP:
                 if (p_param) strcat(param_str, ", ");
             }
             print_error(9, child(root, 2), name, param_str, arg_str);
+            return symbol->type->func.ret;
+        }
+        // below if for translation
+        if (strcmp(symbol->name, "read") == 0) {
+            if (op) CODE(IR_READ, .op=op);
+        } else if (strcmp(symbol->name, "write") == 0) {
+            CODE(IR_WRITE, .op=arg_list->op);
+        } else {
+            struct func_arg_list *p_arg = arg_list;
+            while (p_arg) {
+                CODE(IR_ARG, .op=p_arg->op);
+                p_arg = p_arg->tail;
+            }
+            struct ir_operand *func = new(struct ir_operand, OP_FUNCTION, \
+                    .name=symbol->name);
+            CODE(IR_CALL, .ret=op ? op:(t1 = new_temp_var()), .func=func);
         }
         return symbol->type->func.ret;
     } else if (child(root, 0)->symbol == Exp) {
+        perror("Array is not supported.");
+        exit(1);
         // Exp LB Exp RB
         vt = NULL;
-        left = dfs_exp(child(root, 0));
+        left = dfs_exp(child(root, 0), NULL);
         if (left == NULL || left->kind != ARRAY) {
             print_error(10, child(root, 0), get_ast_node_code(child(root, 0)));
         } else {
@@ -697,7 +895,7 @@ ID_LP_RP:
                 free(temp);
             }
         }
-        right = dfs_exp(child(root, 2));
+        right = dfs_exp(child(root, 2), NULL);
         if (right == NULL || right->kind != BASIC || right->basic != INT) {
             print_error(12, child(root, 2), get_ast_node_code(child(root, 2)));// TODO
         }
@@ -710,10 +908,12 @@ ID_LP_RP:
 struct func_arg_list *dfs_args(struct ast_node *root) {
     assert(root->symbol == Args);
     struct func_arg_list *al = new(struct func_arg_list);
-    al->var_type = dfs_exp(child(root, 0));
-    if (child(root, 1)) {
+    struct ir_operand *t = new_temp_var();
+    al->var_type = dfs_exp(child(root, 0), t);
+    al->op = t;
+    if (child_num(root) == 3) { // Exp COMMA Args
         al->tail = dfs_args(child(root, 2));
-    } else {
+    } else { // Exp
         al->tail = NULL;
     }
     return al;
@@ -721,23 +921,49 @@ struct func_arg_list *dfs_args(struct ast_node *root) {
 
 void dfs_stmt(struct ast_node *root) {
     assert(root->symbol == Stmt);
-    if (child(root, 0)->symbol == RETURN) {
-        // RETURN Exp SEMI
-        struct var_type *vt = dfs_exp(child(root, 1));
+    struct ir_operand *t1, *label1, *label2;
+    struct var_type *vt;
+    switch (root->child->symbol) {
+    case Exp:
+        dfs_exp(child(root, 0), NULL);
+        return;
+    case CompSt:
+        push_scope();
+        dfs_comp_st(child(root, 0));
+        pop_scope();
+        return;
+    case RETURN:
+        vt = dfs_exp(child(root, 1), t1 = new_temp_var());
         if (!var_type_equal(vt, func_ret_type)) {
             print_error(8, child(root, 1));
             return;
         }
-    } else if (child(root, 0)->symbol == CompSt) {
-        push_scope();
-        dfs_comp_st(child(root, 0));
-        pop_scope();
-    }
-    else {
-        struct ast_node *p;
-        for (p = root->child; p; p = p->peer) {
-            dfs(p);
+        CODE(IR_RETURN, .op=t1);
+        return;
+    case IF:
+        if (child_num(root) == 5) { // IF LP Exp RP Stmt
+            dfs_exp_cond(child(root, 2), NULL, label1 = new_label());
+            dfs_stmt(child(root, 4));
+            CODE(IR_LABEL, .op=label1);
+        } else { // IF LP Exp RP Stmt ELSE Stmt
+            dfs_exp_cond(child(root, 2), NULL, label1 = new_label());
+            dfs_stmt(child(root, 4));
+            label2 = new_label();
+            CODE(IR_GOTO, .op=label2);
+            CODE(IR_LABEL, .op=label1);
+            dfs_stmt(child(root, 6));
+            CODE(IR_LABEL, .op=label2);
         }
+        return;
+    case WHILE: // WHILE LP Exp RP Stmt
+        CODE(IR_LABEL, .op=(label1 = new_label()));
+        dfs_exp_cond(child(root, 2), NULL, label2 = new_label());
+        dfs_stmt(child(root, 4));
+        CODE(IR_GOTO, .op=label1);
+        CODE(IR_LABEL, .op=label2);
+        return;
+    default:
+        exit(2);
     }
-    TRANSLATE(root);
 }
+
