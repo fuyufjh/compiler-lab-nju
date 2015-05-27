@@ -4,10 +4,17 @@
 #include "symbol_table.h"
 #include "read_symbols.h"
 #include "error.h"
+#include "translate.h"
+
+#include "ast.h"
 
 #define child(node, n) \
     (n == 0 ? node->child : get_nth_child_ast_node(node, n))
 static struct var_type *func_ret_type;
+#define TRANSLATE(node) \
+    printf("===== %s =====\n", get_symbol_name(node->symbol)); \
+    print_ir_list(translate(node), stdout)
+    //ir_list_all = concat_ir_list(ir_list_all, translate(node))
 
 #define VAR_TYPE_STR_SIZE 1024
 
@@ -244,6 +251,7 @@ void dfs_fun_dec(struct ast_node *root, struct var_type *ret, bool dec_only) {
         if (!insert_func_symbol(name, vt, root)) {
             print_error(4, root->child, name);
         }
+        TRANSLATE(root);
     }
 }
 
@@ -448,16 +456,15 @@ struct field_list *dfs_dec_list(struct ast_node *root, struct var_type *vt) {
 }
 
 struct field_list *dfs_dec(struct ast_node *root, struct var_type *vt) {
-    // Attention! Initial value (if assigned) was not saved.
     assert(root->symbol == Dec);
     struct field_list *fl = new(struct field_list);
     fl->type = dfs_var_dec(root->child, &fl->name, vt);
     fl->tail = NULL;
     if (func_ret_type == NULL) { // now in struct
-        if (child(root, 2)) {
+        if (child(root, 2)) { // initializing is forbidden
             print_error(20, root);
         }
-    } else if (child(root, 2)) {
+    } else if (child(root, 2)) { // ASSIGNOP Exp
         struct var_type *exp_type = dfs_exp(child(root, 2));
         if (!var_type_equal(exp_type, fl->type)) {
             print_error(5, root);
@@ -472,6 +479,7 @@ struct field_list *dfs_dec(struct ast_node *root, struct var_type *vt) {
         free(fl);
         return NULL;
     }
+    TRANSLATE(root);
     return fl;
 }
 
@@ -731,4 +739,5 @@ void dfs_stmt(struct ast_node *root) {
             dfs(p);
         }
     }
+    TRANSLATE(root);
 }

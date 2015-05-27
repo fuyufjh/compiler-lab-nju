@@ -15,6 +15,8 @@ inline int child_num(struct ast_node *node) {
 struct ir_operand imme_zero = {OP_IMMEDIATE, .val_int=0};
 struct ir_operand imme_one  = {OP_IMMEDIATE, .val_int=1};
 
+extern bool no_error;
+
 enum relop_type get_relop(struct ast_node *root) {
     assert(root->symbol == RELOP);
     if (strcmp(root->value.str_value, "==") == 0) return RELOP_EQ;
@@ -42,8 +44,7 @@ enum relop_type get_not_relop(struct ast_node *root) {
 
 struct ir_list *translate(struct ast_node *root) {
     assert(root != NULL);
-    struct ir_list *ir = NULL;
-    struct ast_node *child;
+    if (!no_error) return NULL;
     switch (root->symbol) {
     case Exp:
         return translate_exp(root, NULL);
@@ -51,11 +52,10 @@ struct ir_list *translate(struct ast_node *root) {
         return translate_stmt(root);
     case FunDec:
         return translate_fun_dec(root);
+    case Dec:
+        return translate_dec(root);
     default:
-        for (child = root->child; child; child = child->peer) {
-            ir = concat_ir_list(ir, translate(child));
-        }
-        return ir;
+        return NULL;
     }
 }
 
@@ -301,3 +301,12 @@ struct ir_list *translate_fun_dec(struct ast_node *root) {
     return code;
 }
 
+struct ir_list *translate_dec(struct ast_node *root) {
+    assert(root->symbol == Dec);
+    if (child_num(root) == 1) return NULL;
+    // VarDec ASSIGNOP Exp
+    assert(child(root, 0)->child->symbol == ID); // Only ID can be assigned
+    char *name = child(root, 0)->child->value.str_value;
+    struct ir_operand *op = find_symbol(name)->operand;
+    return translate_exp(child(root, 2), op);
+}

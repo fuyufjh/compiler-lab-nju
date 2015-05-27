@@ -42,11 +42,14 @@ struct ir_code {
         IR_WRITE,
     } kind;
     union {
-        struct { // 3-operand
-            struct ir_operand *dst, *src1, *src2;
-        };
-        struct { // 2-operand
-            struct ir_operand *_dst, *src;
+        struct {
+            struct ir_operand *dst;
+            union {
+                struct {
+                    struct ir_operand *src1, *src2;
+                };
+                struct ir_operand *src;
+            };
         };
         struct { // 1-operand
             struct ir_operand *op;
@@ -73,7 +76,7 @@ struct ir_list {
         struct ir_code *code;
         struct ir_node *next;
     } *head, *tail;
-} ir_list_all;
+} *ir_list_all;
 
 struct ir_operand *new_temp_var();
 struct ir_operand *new_variable();

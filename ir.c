@@ -2,9 +2,9 @@
 #include "ir.h"
 #include "common.h"
 
-static int count_temp_var;
-static int count_variable;
-static int count_label;
+static int count_temp_var = 1;
+static int count_variable = 1;
+static int count_label    = 1;
 
 struct ir_operand *new_temp_var() {
     struct ir_operand *t = new(struct ir_operand);
@@ -56,7 +56,7 @@ struct ir_list *concat_ir_list(struct ir_list *a, struct ir_list *b) {
         return a;
     }
     a->tail->next = b->head;
-    a->tail = b->head;
+    a->tail = b->tail;
     free(b);
     return a;
 }
@@ -64,7 +64,6 @@ struct ir_list *concat_ir_list(struct ir_list *a, struct ir_list *b) {
 static FILE *out;
 
 static char *get_operand_str(struct ir_operand *op) {
-    // DO NOT free the return value!
     static char buf[32];
     char *modifier;
     switch (op->modifier) {
@@ -92,7 +91,9 @@ static char *get_operand_str(struct ir_operand *op) {
         sprintf(buf, "%s", op->name);
         break;
     }
-    return buf;
+    char *ret = (char*) malloc(sizeof(char)*(strlen(buf) + 1));
+    strcpy(ret, buf);
+    return ret;
 }
 
 char* relop_str[] = {
@@ -157,6 +158,7 @@ void print_ir_code(struct ir_code *code) {
 }
 
 void print_ir_list(struct ir_list *list, FILE *fp) {
+    if (list == NULL) return;
 #ifndef IR_DEBUG
     out = fp;
 #else

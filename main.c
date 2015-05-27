@@ -57,9 +57,7 @@ int main(int argc, char* argv[]) {
     init_read_write();
     read_symbols();
     check_declared_fun();
-    if (no_error) {
-        translate(ast_root);
-    }
+    print_ir_list(ir_list_all, stdout);
     free(source_code);
     return 0;
 }

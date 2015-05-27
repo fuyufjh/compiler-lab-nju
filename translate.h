@@ -14,5 +14,6 @@ struct ir_list *translate_exp_cond(struct ast_node *root, \
 struct ir_list *translate_stmt(struct ast_node *root);
 struct ir_list *translate_var_list(struct ast_node *root);
 struct ir_list *translate_fun_dec(struct ast_node *root);
+struct ir_list *translate_dec(struct ast_node *root);
 
 #endif
