@@ -1,5 +1,5 @@
 CC		= gcc
-CFLAGS	= -lfl -ly -g -Wall
+CFLAGS	= -lfl -ly -g -Wall -D IR_DEBUG
 CFILES	= $(shell find -name "*.c")
 HFILES	= $(shell find -name "*.h")
 

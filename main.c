@@ -2,10 +2,11 @@
 #include "syntax.tab.h"
 #include "ast.h"
 #include "read_symbols.h"
+#include "translate.h"
 
 extern void yyrestart(FILE * input_file);
 
-int no_error = 1;
+bool no_error = true;
 
 int main(int argc, char* argv[]) {
     if (argc <= 1) {
@@ -53,8 +54,12 @@ int main(int argc, char* argv[]) {
     if (flag_print_ast) {
         print_ast(ast_root, 0);
     }
+    init_read_write();
     read_symbols();
     check_declared_fun();
+    if (no_error) {
+        translate(ast_root);
+    }
     free(source_code);
     return 0;
 }

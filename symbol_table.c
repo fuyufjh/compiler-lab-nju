@@ -246,3 +246,16 @@ void check_declared_fun() {
         p = p->s_next;
     }
 }
+
+extern struct var_type int_type;
+
+void init_read_write() {
+    struct var_type *vt_read = new(struct var_type, FUNCTION,\
+            .func.ret=&int_type, .func.params=NULL);
+    struct func_param_list *param = new(struct func_param_list,\
+            &int_type, NULL, NULL);
+    struct var_type *vt_write = new(struct var_type, FUNCTION,\
+            .func.ret=NULL, .func.params=param);
+    insert_func_symbol("read", vt_read, NULL);
+    insert_func_symbol("write", vt_write, NULL);
+}

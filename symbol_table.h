@@ -30,5 +30,6 @@ struct st_node *delete_node_hashtable(struct st_node *node);
 struct st_node *delete_node_scope_list(struct st_node* node);
 void delete_symbol(char *name);
 void check_declared_fun();
+void init_read_write();
 
 #endif

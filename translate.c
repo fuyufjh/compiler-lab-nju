@@ -13,7 +13,7 @@ inline int child_num(struct ast_node *node) {
 #define NEW_CODE(...) create_ir_list(new(struct ir_code, __VA_ARGS__))
 
 struct ir_operand imme_zero = {OP_IMMEDIATE, .val_int=0};
-struct ir_operand imme_one = {OP_IMMEDIATE, .val_int=1};
+struct ir_operand imme_one  = {OP_IMMEDIATE, .val_int=1};
 
 enum relop_type get_relop(struct ast_node *root) {
     assert(root->symbol == RELOP);
@@ -37,6 +37,7 @@ enum relop_type get_not_relop(struct ast_node *root) {
     case RELOP_G:   return RELOP_LE;
     case RELOP_LE:  return RELOP_G;
     }
+    exit(2);
 }
 
 struct ir_list *translate(struct ast_node *root) {
@@ -44,12 +45,18 @@ struct ir_list *translate(struct ast_node *root) {
     struct ir_list *ir = NULL;
     struct ast_node *child;
     switch (root->symbol) {
+    case Exp:
+        return translate_exp(root, NULL);
+    case Stmt:
+        return translate_stmt(root);
+    case FunDec:
+        return translate_fun_dec(root);
     default:
         for (child = root->child; child; child = child->peer) {
             ir = concat_ir_list(ir, translate(child));
         }
+        return ir;
     }
-    return ir;
 }
 
 struct ir_list *translate_args(struct ast_node *root, struct ir_list **ir_list_args) {
@@ -271,3 +278,26 @@ struct ir_list *translate_stmt(struct ast_node *root) {
         exit(2);
     }
 }
+
+struct ir_list *translate_var_list(struct ast_node *root) {
+    assert(root->symbol == VarList);
+    char *id = child(root->child, 1)->child->value.str_value;
+    struct ir_operand *op_var = find_symbol(id)->operand;
+    struct ir_list *code = NEW_CODE(IR_PARAM, .op=op_var);
+    if (child_num(root) == 3) {
+        code = CAT(code, translate_var_list(child(root, 2)));
+    }
+    return code;
+}
+
+struct ir_list *translate_fun_dec(struct ast_node *root) {
+    assert(root->symbol == FunDec);
+    char *name = child(root, 0)->value.str_value;
+    struct ir_operand *func = new(struct ir_operand, OP_FUNCTION, .name=name);
+    struct ir_list *code = NEW_CODE(IR_FUNCTION, .op=func);
+    if (child_num(root) == 4) {
+        code = CAT(code, translate_var_list(child(root, 2)));
+    }
+    return code;
+}
+

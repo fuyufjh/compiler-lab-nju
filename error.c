@@ -2,6 +2,7 @@
 #include "common.h"
 
 const char *error_format_str[];
+extern bool no_error;
 
 void print_error(int error_type, struct ast_node *node, ...) {
     printf("Error type %d at Line %d: ", error_type, node->lineno);
@@ -9,6 +10,7 @@ void print_error(int error_type, struct ast_node *node, ...) {
     va_start(ap, node);
     vprintf(error_format_str[error_type], ap);
     printf("\n");
+    no_error = false;
 }
 
 const char *error_format_str[] = {
