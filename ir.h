@@ -79,5 +79,6 @@ struct ir_operand *new_label();
 void add_ir_code(struct ir_code *code);
 void print_ir_code(struct ir_code *code);
 void print_ir_list(FILE *fp);
+struct ir_operand *ir_clean_temp_var(struct ir_operand *op_temp);
 
 #endif

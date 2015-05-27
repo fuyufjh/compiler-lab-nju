@@ -2,7 +2,6 @@
 #include "syntax.tab.h"
 #include "ast.h"
 #include "read_symbols.h"
-#include "translate.h"
 
 extern void yyrestart(FILE * input_file);
 

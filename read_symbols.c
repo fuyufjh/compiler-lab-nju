@@ -554,7 +554,9 @@ struct var_type *dfs_exp_cond(struct ast_node *root, \
     struct var_type *vt, *left, *right;
     if (n == 3 && child(root, 1)->symbol == RELOP) {
         left = dfs_exp(child(root, 0), t1 = new_temp_var());
+        t1 = ir_clean_temp_var(t1);
         right = dfs_exp(child(root, 2), t2 = new_temp_var());
+        t2 = ir_clean_temp_var(t2);
         if (left == NULL || right == NULL) return NULL;
         if (!var_type_equal(left, right)) {
             print_error(7, root);
@@ -620,6 +622,7 @@ struct var_type *dfs_exp_cond(struct ast_node *root, \
         return vt;
     } else {
         vt = dfs_exp(root, t1 = new_temp_var());
+        t1 = ir_clean_temp_var(t1);
         if (label_true && label_false) {
             CODE(IR_IF_GOTO, .src1=t1, .src2=&imme_zero,\
                         .relop=RELOP_NEQ, .dst=label_true);
@@ -677,6 +680,7 @@ struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
         switch (child(root, 0)->symbol) {
         case MINUS:
             vt = dfs_exp(child(root, 1), t1 = new_temp_var());
+            t1 = ir_clean_temp_var(t1);
             if (vt == NULL) return NULL;
             if (vt->kind != BASIC) {
                 print_error(7, child(root, 1));
@@ -703,6 +707,7 @@ struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
         case ASSIGNOP:
             left = dfs_exp(child(root, 0), NULL);
             right = dfs_exp(child(root, 2), t2 = new_temp_var());
+            t2 = ir_clean_temp_var(t2);
             if (left == NULL || right == NULL) return NULL;
             struct ast_node *lnode = root->child, *p_dep = lnode;
             int left_value = lnode->left_value;
@@ -783,7 +788,9 @@ struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
             ir_type = IR_DIV; goto ADD_SUB_MUL_DIV;
 ADD_SUB_MUL_DIV:
             left = dfs_exp(child(root, 0), t1 = new_temp_var());
+            t1 = ir_clean_temp_var(t1);
             right = dfs_exp(child(root, 2), t2 = new_temp_var());
+            t2 = ir_clean_temp_var(t2);
             if (op) CODE(ir_type, .dst=op, .src1=t1, .src2=t2);
             if (left == NULL || right == NULL) return NULL;
             if (!var_type_equal(left, right)) {
@@ -910,6 +917,7 @@ struct func_arg_list *dfs_args(struct ast_node *root) {
     struct func_arg_list *al = new(struct func_arg_list);
     struct ir_operand *t = new_temp_var();
     al->var_type = dfs_exp(child(root, 0), t);
+    t = ir_clean_temp_var(t);
     al->op = t;
     if (child_num(root) == 3) { // Exp COMMA Args
         al->tail = dfs_args(child(root, 2));
@@ -934,6 +942,7 @@ void dfs_stmt(struct ast_node *root) {
         return;
     case RETURN:
         vt = dfs_exp(child(root, 1), t1 = new_temp_var());
+        t1 = ir_clean_temp_var(t1);
         if (!var_type_equal(vt, func_ret_type)) {
             print_error(8, child(root, 1));
             return;

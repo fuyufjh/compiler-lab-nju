@@ -183,3 +183,18 @@ void add_ir_code(struct ir_code *code) {
         ir_list_tail = code;
     }
 }
+
+struct ir_operand *ir_clean_temp_var(struct ir_operand *op_temp) {
+    assert(op_temp->kind == OP_TEMP_VAR);
+    if (ir_list_tail->kind == IR_ASSIGN && ir_list_tail->dst == op_temp) {
+        free(op_temp);
+        struct ir_code *p = ir_list_tail;
+        struct ir_operand *ret = p->src;
+        ir_list_tail = ir_list_tail->prev;
+        ir_list_tail->next = NULL;
+        free(p);
+        count_temp_var--;
+        return ret;
+    }
+    return op_temp;
+}
