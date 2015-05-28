@@ -13,12 +13,33 @@ inline int child_num(struct ast_node *node) {
 //#define CODE(...) print_ir_code(new(struct ir_code, __VA_ARGS__))
 #define CODE(...) add_ir_code(new(struct ir_code, __VA_ARGS__))
 
-static struct var_type *func_ret_type;
+struct var_type *func_ret_type;
 
 #define VAR_TYPE_STR_SIZE 1024
 
 struct ir_operand imme_zero = {OP_IMMEDIATE, .val_int=0};
 struct ir_operand imme_one  = {OP_IMMEDIATE, .val_int=1};
+struct ir_operand imme_four  = {OP_IMMEDIATE, .val_int=4};
+
+struct ir_operand *modify_operator(struct ir_operand *op, enum modifier_type mod) {
+    assert(op->kind == OP_VARIABLE || op->kind == OP_TEMP_VAR);
+    struct ir_operand *op_mod = new(struct ir_operand);
+    *op_mod = *op;
+    switch (op->modifier) {
+    case OP_MDF_NONE:
+        op_mod->modifier = mod;
+        break;
+    case OP_MDF_AND:
+        assert(mod == OP_MDF_STAR);
+        op_mod->modifier = OP_MDF_NONE;
+        break;
+    case OP_MDF_STAR:
+        assert(mod == OP_MDF_AND);
+        op_mod->modifier = OP_MDF_NONE;
+        break;
+    }
+    return op_mod;
+}
 
 extern bool no_error;
 
@@ -47,6 +68,27 @@ enum relop_type get_not_relop(struct ast_node *root) {
     exit(2);
 }
 
+#pragma GCC diagnostic ignored "-Wswitch"
+int get_var_type_size(struct var_type *vt) {
+    assert(vt->kind != FUNCTION);
+    int size;
+    switch (vt->kind) {
+    case BASIC:
+        return 4;
+    case ARRAY:
+        size = get_var_type_size(vt->array.elem);
+        struct array_size_list *p = vt->array.size_list;
+        for (; p; p = p->next)
+            size *= p->size;
+        return size;
+    case STRUCTURE:
+        size = 0;
+        struct field_list *field = vt->struct_type->fields;
+        for (; field; field = field->tail) size += get_var_type_size(field->type);
+        return size;
+    }
+    return 0;
+}
 
 char* get_var_type_str(struct var_type *vt) {
     char buf[VAR_TYPE_STR_SIZE];
@@ -150,6 +192,17 @@ bool params_equal(struct func_param_list *pl_a, struct func_param_list *pl_b) {
         p_b = p_b->tail;
     }
     return p_a == NULL && p_b == NULL;
+}
+
+int get_field_offset(struct struct_type *st, char* name) {
+    struct field_list *head = st->fields;
+    int offset = 0;
+    while (head != NULL) {
+        if (strcmp(head->name, name) == 0) return offset;
+        head = head->tail;
+        offset += 4;
+    }
+    exit(4);
 }
 
 struct field_list *get_field_list(struct field_list *head, char* name) {
@@ -274,8 +327,10 @@ void dfs_fun_dec(struct ast_node *root, struct var_type *ret, bool dec_only) {
             struct func_param_list *p = vt->func.params;
             while (p) {
                 insert_symbol(p->name, p->type);
-                struct ir_operand *op_var = find_symbol(p->name)->operand;
+                symbol = find_symbol(p->name);
+                struct ir_operand *op_var = symbol->operand;
                 CODE(IR_PARAM, .op=op_var);
+                symbol->operand = modify_operator(op_var, OP_MDF_STAR);
                 p = p->tail;
             }
         }
@@ -509,17 +564,23 @@ struct field_list *dfs_dec(struct ast_node *root, struct var_type *vt) {
         free(fl);
         return NULL;
     }
-    if (func_ret_type == NULL) { // now in struct
+    if (func_ret_type == NULL) { // in struct
         if (child(root, 2)) { // initializing is forbidden
             print_error(20, root);
         }
-    } else if (child(root, 2)) { // VarDec ASSIGNOP Exp
-        assert(child(root, 0)->child->symbol == ID); // Only ID can be assigned
-        char *name = child(root, 0)->child->value.str_value;
-        struct ir_operand *op = find_symbol(name)->operand;
-        struct var_type *exp_type = dfs_exp(child(root, 2), op);
-        if (!var_type_equal(exp_type, fl->type)) {
-            print_error(5, root);
+    } else { // in function
+        if (child_num(root) == 1) { // VarDec
+            if (fl->type->kind == STRUCTURE || fl->type->kind == ARRAY) {
+                struct ir_operand *op = find_symbol(fl->name)->operand;
+                CODE(IR_DEC, .op=op, .size=get_var_type_size(fl->type));
+            }
+        } else { // VarDec ASSIGNOP Exp
+            assert(child(root, 0)->child->symbol == ID); // Only ID can be assigned when declared
+            struct ir_operand *op = find_symbol(fl->name)->operand;
+            struct var_type *exp_type = dfs_exp(child(root, 2), op);
+            if (!var_type_equal(exp_type, fl->type)) {
+                print_error(5, root);
+            }
         }
     }
     return fl;
@@ -638,11 +699,91 @@ struct var_type *dfs_exp_cond(struct ast_node *root, \
     }
 }
 
-struct ir_operand *translate_exp_lval(struct ast_node *root) {
+struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
+    // ID
+    // LP Exp RP
+    // Exp DOT ID
+    // Exp LB Exp RB
     assert(root->symbol == Exp);
-    assert(child(root, 0)->symbol == ID && child(root, 1) == NULL);
-    struct ast_node* id_node = child(root ,0);
-    return find_symbol(id_node->value.str_value)->operand;
+    /*assert(child(root, 0)->symbol == ID && child(root, 1) == NULL);*/
+    /*struct ast_node* id_node = child(root ,0);*/
+    /*return find_symbol(id_node->value.str_value)->operand;*/
+    char* name;
+    struct symbol *symbol;
+    struct ir_operand *t1, *t2, *t3, *t4;
+    struct var_type *vt1, *vt2;
+    switch (child(root, 0)->symbol) {
+    case ID:
+        name = dfs_id(child(root, 0));
+        symbol = find_symbol(name);
+        if (symbol == NULL) {
+            print_error(1, child(root, 0), name);
+            return NULL;
+        }
+        t1 = symbol->operand;
+        t2 = modify_operator(t1, OP_MDF_AND);
+        CODE(IR_ASSIGN, .dst=op, .src=t2);
+        return symbol->type;
+    case LP: // LP Exp RP
+        return dfs_exp_addr(child(root, 1), op);
+    case Exp:
+        switch (child(root, 1)->symbol) {
+        case LB: // Exp LB Exp RB
+            vt1 = dfs_exp_addr(child(root, 0), t1 = new_temp_var());
+            t1 = ir_clean_temp_var(t1);
+            vt2 = dfs_exp(child(root, 2), t2 = new_temp_var());
+            t2 = ir_clean_temp_var(t2);
+            if (vt2 == NULL || vt2->kind != BASIC || vt2->basic != INT) {
+                print_error(12, child(root, 2), get_ast_node_code(child(root, 2)));// TODO
+            }
+            struct var_type *vt = new(struct var_type);
+            *vt = *vt1;
+            vt->array.size_list = vt->array.size_list->next;
+            if (vt->array.size_list == NULL) {
+                struct var_type *temp = vt;
+                vt = vt->array.elem;
+                free(temp);
+                if (t2->kind == OP_IMMEDIATE) {
+                    t3 = new(struct ir_operand, OP_IMMEDIATE, .val_int=4*t2->val_int);
+                    CODE(IR_ADD, .dst=op, .src1=t1, .src2=t3);
+                } else {
+                    CODE(IR_MUL, .dst=(t3 = new_temp_var()), .src1=t2, .src2=&imme_four);
+                    CODE(IR_ADD, .dst=op, .src1=t1, .src2=t3);
+                }
+            } else {
+                int dim_size = 4;
+                struct array_size_list *p = vt->array.size_list;
+                while (p) {
+                    dim_size *= p->size;
+                    p = p->next;
+                }
+                t3 = new_temp_var();
+                t4 = new(struct ir_operand, OP_IMMEDIATE, .val_int=dim_size);
+                CODE(IR_MUL, .dst=t3, .src1=t2, .src2=t4);
+                CODE(IR_ADD, .dst=op, .src1=t3, .src2=t1);
+            }
+            return vt;
+        case DOT: // Exp DOT ID
+            vt = dfs_exp_addr(child(root, 0), t1 = new_temp_var());
+            t1 = ir_clean_temp_var(t1);
+            if (vt == NULL) return NULL;
+            if (vt->kind != STRUCTURE) {
+                print_error(13, child(root, 0));
+                return NULL;
+            }
+            char* name = dfs_id(child(root, 2));
+            struct var_type *field_vt = get_field_type(vt->struct_type, name);
+            if (field_vt == NULL) {
+                print_error(14, child(root, 2), name);
+                return NULL;
+            }
+            int offset = get_field_offset(vt->struct_type, name);
+            t2 = new(struct ir_operand, OP_IMMEDIATE, .val_int=offset);
+            CODE(IR_ADD, .dst=op, .src1=t1, .src2=t2);
+            return field_vt;
+        }
+    }
+    return NULL;
 }
 
 struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
@@ -650,7 +791,7 @@ struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
     char* name;
     struct symbol *symbol;
     struct var_type *vt, *left, *right;
-    struct ir_operand *t1, *t2, *label1;
+    struct ir_operand *t1, *t2, *t3, *label1;
     enum ir_type ir_type;
     switch (child_num(root)) {
     int value;
@@ -705,52 +846,47 @@ struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
         case Exp: // LP Exp RP
             return dfs_exp(child(root, 1), op);
         case ASSIGNOP:
-            left = dfs_exp(child(root, 0), NULL);
+            /*left = dfs_exp(child(root, 0), NULL);*/
+            left = dfs_exp_addr(child(root, 0), t1 = new_temp_var());
+            t1 = ir_clean_temp_var(t1);
             right = dfs_exp(child(root, 2), t2 = new_temp_var());
             t2 = ir_clean_temp_var(t2);
             if (left == NULL || right == NULL) return NULL;
-            struct ast_node *lnode = root->child, *p_dep = lnode;
-            int left_value = lnode->left_value;
-            while (p_dep->left_value == DEPENDS_ON_CHILD) {
-                p_dep = child(p_dep, p_dep->left_value_depends_child);
-            }
-            if (p_dep->left_value == DEPENDS_ON_ID) {
-                assert(p_dep->symbol == ID);
-                struct symbol *s_dep = find_symbol(p_dep->value.str_value);
-                if (s_dep && s_dep->type->kind != FUNCTION) {
-                    left_value = true;
-                }
-            } else {
-                left_value = p_dep->left_value;
-            }
-            if (left_value == false) {
-                print_error(6, child(root, 0));
-                return NULL;
-            }
+            /*struct ast_node *lnode = root->child, *p_dep = lnode;*/
+            /*int left_value = lnode->left_value;*/
+            /*while (p_dep->left_value == DEPENDS_ON_CHILD) {*/
+                /*p_dep = child(p_dep, p_dep->left_value_depends_child);*/
+            /*}*/
+            /*if (p_dep->left_value == DEPENDS_ON_ID) {*/
+                /*assert(p_dep->symbol == ID);*/
+                /*struct symbol *s_dep = find_symbol(p_dep->value.str_value);*/
+                /*if (s_dep && s_dep->type->kind != FUNCTION) {*/
+                    /*left_value = true;*/
+                /*}*/
+            /*} else {*/
+                /*left_value = p_dep->left_value;*/
+            /*}*/
+            /*lnode->left_value = left_value;*/
+            /*if (left_value == false) {*/
+                /*print_error(6, child(root, 0));*/
+                /*return NULL;*/
+            /*}*/
             if (!var_type_equal(left, right)) {
                 print_error(5, root);
                 return NULL;
             }
-            t1 = translate_exp_lval(child(root, 0));
-            CODE(IR_ASSIGN, .dst=t1, .src=t2);
-            if (op) CODE(IR_ASSIGN, .dst=op, .src=t1);
+            /*t1 = translate_exp_lval(child(root, 0));*/
+            t3 = modify_operator(t1, OP_MDF_STAR);
+            CODE(IR_ASSIGN, .dst=t3, .src=t2);
+            if (op) CODE(IR_ASSIGN, .dst=op, .src=t3);
             return left;
         case DOT:
-            perror("Struct is not supported.");
-            exit(1);
-            vt = dfs_exp(child(root, 0), NULL);
+            vt = dfs_exp_addr(root, t1=new_temp_var());
+            t1 = ir_clean_temp_var(t1);
             if (vt == NULL) return NULL;
-            if (vt->kind != STRUCTURE) {
-                print_error(13, child(root, 0));
-                return NULL;
-            }
-            char* name = dfs_id(child(root, 2));
-            struct var_type *field_vt = get_field_type(vt->struct_type, name);
-            if (field_vt == NULL) {
-                print_error(14, child(root, 2), name);
-                return NULL;
-            }
-            return field_vt;
+            t2 = modify_operator(t1, OP_MDF_STAR);
+            CODE(IR_ASSIGN, .dst=op, .src=t2);
+            return vt;
         case LP:
             goto ID_LP_RP;
         /*default: // Exp Op Exp  Op = AND, OR, PLUS, MINUS ...*/
@@ -875,9 +1011,12 @@ ID_LP_RP:
             CODE(IR_WRITE, .op=arg_list->op);
         } else {
             struct func_arg_list *p_arg = arg_list;
-            while (p_arg) {
-                CODE(IR_ARG, .op=p_arg->op);
-                p_arg = p_arg->tail;
+            for (; p_arg; p_arg = p_arg->tail) {
+                if (p_arg->var_type->kind == BASIC) {
+                    CODE(IR_ARG, .op=p_arg->op);
+                } else {
+                    CODE(IR_ARG, .op=modify_operator(p_arg->op, OP_MDF_AND));
+                }
             }
             struct ir_operand *func = new(struct ir_operand, OP_FUNCTION, \
                     .name=symbol->name);
@@ -885,27 +1024,12 @@ ID_LP_RP:
         }
         return symbol->type->func.ret;
     } else if (child(root, 0)->symbol == Exp) {
-        perror("Array is not supported.");
-        exit(1);
         // Exp LB Exp RB
-        vt = NULL;
-        left = dfs_exp(child(root, 0), NULL);
-        if (left == NULL || left->kind != ARRAY) {
-            print_error(10, child(root, 0), get_ast_node_code(child(root, 0)));
-        } else {
-            vt = new(struct var_type);
-            *vt = *left; // copy and modify
-            vt->array.size_list = vt->array.size_list->next;
-            if (vt->array.size_list == NULL) {
-                struct var_type *temp = vt;
-                vt = vt->array.elem;
-                free(temp);
-            }
-        }
-        right = dfs_exp(child(root, 2), NULL);
-        if (right == NULL || right->kind != BASIC || right->basic != INT) {
-            print_error(12, child(root, 2), get_ast_node_code(child(root, 2)));// TODO
-        }
+        vt = dfs_exp_addr(root, t1 = new_temp_var());
+        t1 = ir_clean_temp_var(t1);
+        if (vt == NULL) return NULL;
+        t2 = modify_operator(t1, OP_MDF_STAR);
+        CODE(IR_ASSIGN, .dst=op, .src=t2);
         return vt;
     }
     assert(false);

@@ -11,9 +11,10 @@ struct ir_operand {
         OP_LABEL,
         OP_FUNCTION
     } kind;
-    enum {
-        OP_MDF_AND = 1,
-        OP_MDF_STAR = 2
+    enum modifier_type {
+        OP_MDF_NONE,
+        OP_MDF_AND,
+        OP_MDF_STAR
     } modifier;
     union {
         int no;

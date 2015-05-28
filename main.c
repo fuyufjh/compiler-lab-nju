@@ -65,6 +65,7 @@ int main(int argc, char* argv[]) {
         fp = stdout;
     }
     print_ir_list(fp);
+    fclose(fp);
     free(source_code);
     return 0;
 }

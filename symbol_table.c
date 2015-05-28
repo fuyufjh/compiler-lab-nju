@@ -13,6 +13,8 @@ struct st_node *st_struct_hashtable[HASH_MASK + 1];
 struct st_node *st_scope_stack[MAX_SCOPE_NUM + 1]; // "+1" is for DECLARED
 static int scope_level = 0;
 
+extern struct var_type *func_ret_type;
+
 static unsigned int hash_pjw(char* name) {
     unsigned int val = 0, i;
     for (; *name; ++name) {
@@ -196,7 +198,8 @@ bool insert_symbol(char* name, struct var_type *vt) {
     s->type = vt;
     s->name = name;
     s->scope = scope_level;
-    s->operand = new_variable();
+    if (func_ret_type != NULL) // now in function
+        s->operand = new_variable();
     return insert_st_node(s);
 }
 
