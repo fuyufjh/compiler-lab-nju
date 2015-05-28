@@ -43,6 +43,15 @@ struct ir_operand *modify_operator(struct ir_operand *op, enum modifier_type mod
     return op_mod;
 }
 
+void print_ir_args(struct func_arg_list *list) {
+    if (list->tail) print_ir_args(list->tail);
+    if (list->var_type->kind == BASIC) {
+        CODE(IR_ARG, .op=list->op);
+    } else {
+        CODE(IR_ARG, .op=modify_operator(list->op, OP_MDF_AND));
+    }
+}
+
 extern bool no_error;
 
 enum relop_type get_relop(struct ast_node *root) {
@@ -315,7 +324,8 @@ void dfs_fun_dec(struct ast_node *root, struct var_type *ret, bool dec_only) {
                 symbol = find_symbol(p->name);
                 struct ir_operand *op_var = symbol->operand;
                 CODE(IR_PARAM, .op=op_var);
-                symbol->operand = modify_operator(op_var, OP_MDF_STAR);
+                if (symbol->type->kind != BASIC)
+                    symbol->operand = modify_operator(op_var, OP_MDF_STAR);
                 p = p->tail;
             }
         }
@@ -946,14 +956,7 @@ ID_LP_RP:
         } else if (strcmp(symbol->name, "write") == 0) {
             CODE(IR_WRITE, .op=arg_list->op);
         } else {
-            struct func_arg_list *p_arg = arg_list;
-            for (; p_arg; p_arg = p_arg->tail) {
-                if (p_arg->var_type->kind == BASIC) {
-                    CODE(IR_ARG, .op=p_arg->op);
-                } else {
-                    CODE(IR_ARG, .op=modify_operator(p_arg->op, OP_MDF_AND));
-                }
-            }
+            print_ir_args(arg_list);
             struct ir_operand *func = new(struct ir_operand, OP_FUNCTION, \
                     .name=symbol->name);
             CODE(IR_CALL, .ret=op ? op:(t1 = new_temp_var()), .func=func);
