@@ -40,3 +40,4 @@ parser
 tags
 test*/
 *.cmm
+*.ir

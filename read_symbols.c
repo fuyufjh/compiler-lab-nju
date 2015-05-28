@@ -154,12 +154,11 @@ bool var_type_equal(struct var_type *a, struct var_type *b) {
         if (!var_type_equal(a->array.elem, b->array.elem)) return false;
         struct array_size_list *sa = a->array.size_list;
         struct array_size_list *sb = b->array.size_list;
+        // only 1st dim can be different
+        sa = sa->next;
+        sb = sb->next;
         while (sa && sb) {
-            // if you want compare the size of every dim, decomment following...
-            //   if (sa->size != sb->size) return false;
-            if (sa->next && sb->next && sa->size != sb->size) {
-                return false;
-            }
+            if (sa->size != sb->size) return false;
             sa = sa->next;
             sb = sb->next;
         }
@@ -722,7 +721,7 @@ struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
         }
         t1 = symbol->operand;
         t2 = modify_operator(t1, OP_MDF_AND);
-        CODE(IR_ASSIGN, .dst=op, .src=t2);
+        if (op) CODE(IR_ASSIGN, .dst=op, .src=t2);
         return symbol->type;
     case LP: // LP Exp RP
         return dfs_exp_addr(child(root, 1), op);
@@ -745,10 +744,10 @@ struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
                 free(temp);
                 if (t2->kind == OP_IMMEDIATE) {
                     t3 = new(struct ir_operand, OP_IMMEDIATE, .val_int=4*t2->val_int);
-                    CODE(IR_ADD, .dst=op, .src1=t1, .src2=t3);
+                    if (op) CODE(IR_ADD, .dst=op, .src1=t1, .src2=t3);
                 } else {
                     CODE(IR_MUL, .dst=(t3 = new_temp_var()), .src1=t2, .src2=&imme_four);
-                    CODE(IR_ADD, .dst=op, .src1=t1, .src2=t3);
+                    if (op) CODE(IR_ADD, .dst=op, .src1=t1, .src2=t3);
                 }
             } else {
                 int dim_size = 4;
@@ -760,7 +759,7 @@ struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
                 t3 = new_temp_var();
                 t4 = new(struct ir_operand, OP_IMMEDIATE, .val_int=dim_size);
                 CODE(IR_MUL, .dst=t3, .src1=t2, .src2=t4);
-                CODE(IR_ADD, .dst=op, .src1=t3, .src2=t1);
+                if (op) CODE(IR_ADD, .dst=op, .src1=t3, .src2=t1);
             }
             return vt;
         case DOT: // Exp DOT ID
@@ -779,7 +778,7 @@ struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
             }
             int offset = get_field_offset(vt->struct_type, name);
             t2 = new(struct ir_operand, OP_IMMEDIATE, .val_int=offset);
-            CODE(IR_ADD, .dst=op, .src1=t1, .src2=t2);
+            if (op) CODE(IR_ADD, .dst=op, .src1=t1, .src2=t2);
             return field_vt;
         }
     }
@@ -827,7 +826,7 @@ struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
                 print_error(7, child(root, 1));
                 return NULL;
             }
-            CODE(IR_SUB, .dst=op, .src1=&imme_zero, .src2=t1);
+            if (op) CODE(IR_SUB, .dst=op, .src1=&imme_zero, .src2=t1);
             return vt;
         case NOT:
             if (op) CODE(IR_ASSIGN, .dst=op, .src=&imme_zero);
@@ -885,7 +884,7 @@ struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
             t1 = ir_clean_temp_var(t1);
             if (vt == NULL) return NULL;
             t2 = modify_operator(t1, OP_MDF_STAR);
-            CODE(IR_ASSIGN, .dst=op, .src=t2);
+            if (op) CODE(IR_ASSIGN, .dst=op, .src=t2);
             return vt;
         case LP:
             goto ID_LP_RP;
@@ -1029,7 +1028,7 @@ ID_LP_RP:
         t1 = ir_clean_temp_var(t1);
         if (vt == NULL) return NULL;
         t2 = modify_operator(t1, OP_MDF_STAR);
-        CODE(IR_ASSIGN, .dst=op, .src=t2);
+        if (op) CODE(IR_ASSIGN, .dst=op, .src=t2);
         return vt;
     }
     assert(false);

@@ -198,7 +198,7 @@ bool insert_symbol(char* name, struct var_type *vt) {
     s->type = vt;
     s->name = name;
     s->scope = scope_level;
-    if (func_ret_type != NULL) // now in function
+    if (scope_level == GLOBAL || func_ret_type != NULL) // now in function
         s->operand = new_variable();
     return insert_st_node(s);
 }
