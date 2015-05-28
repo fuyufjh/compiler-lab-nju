@@ -21,6 +21,9 @@ struct ir_operand imme_zero = {OP_IMMEDIATE, .val_int=0};
 struct ir_operand imme_one  = {OP_IMMEDIATE, .val_int=1};
 struct ir_operand imme_four  = {OP_IMMEDIATE, .val_int=4};
 
+#define IMME_OP(value) new(struct ir_operand, OP_IMMEDIATE, \
+        OP_MDF_NONE, .val_int=value)
+
 struct ir_operand *modify_operator(struct ir_operand *op, enum modifier_type mod) {
     assert(op->kind == OP_VARIABLE || op->kind == OP_TEMP_VAR);
     struct ir_operand *op_mod = new(struct ir_operand);
@@ -743,10 +746,11 @@ struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
                 vt = vt->array.elem;
                 free(temp);
                 if (t2->kind == OP_IMMEDIATE) {
-                    t3 = new(struct ir_operand, OP_IMMEDIATE, .val_int=4*t2->val_int);
+                    t3 = IMME_OP(4*t2->val_int);
                     if (op) CODE(IR_ADD, .dst=op, .src1=t1, .src2=t3);
                 } else {
                     CODE(IR_MUL, .dst=(t3 = new_temp_var()), .src1=t2, .src2=&imme_four);
+                    t3 = ir_clean_temp_var(t3);
                     if (op) CODE(IR_ADD, .dst=op, .src1=t1, .src2=t3);
                 }
             } else {
@@ -757,8 +761,9 @@ struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
                     p = p->next;
                 }
                 t3 = new_temp_var();
-                t4 = new(struct ir_operand, OP_IMMEDIATE, .val_int=dim_size);
+                t4 = IMME_OP(dim_size);
                 CODE(IR_MUL, .dst=t3, .src1=t2, .src2=t4);
+                t3 = ir_clean_temp_var(t3);
                 if (op) CODE(IR_ADD, .dst=op, .src1=t3, .src2=t1);
             }
             return vt;
@@ -777,7 +782,7 @@ struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
                 return NULL;
             }
             int offset = get_field_offset(vt->struct_type, name);
-            t2 = new(struct ir_operand, OP_IMMEDIATE, .val_int=offset);
+            t2 = IMME_OP(offset);
             if (op) CODE(IR_ADD, .dst=op, .src1=t1, .src2=t2);
             return field_vt;
         }
@@ -807,7 +812,7 @@ struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
             return symbol->type;
         case INT:
             value = dfs_int(child(root, 0));
-            t1 = new(struct ir_operand, OP_IMMEDIATE, .val_int=value);
+            t1 = IMME_OP(value);
             if (op) CODE(IR_ASSIGN, .dst=op, .src=t1);
             return &int_type;
         case FLOAT:
@@ -877,6 +882,8 @@ struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
             /*t1 = translate_exp_lval(child(root, 0));*/
             t3 = modify_operator(t1, OP_MDF_STAR);
             CODE(IR_ASSIGN, .dst=t3, .src=t2);
+            // optimizing
+            //ir_clean_assign();
             if (op) CODE(IR_ASSIGN, .dst=op, .src=t3);
             return left;
         case DOT:

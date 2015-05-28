@@ -73,13 +73,14 @@ struct ir_code {
     struct ir_code *prev, *next;
 } *ir_list, *ir_list_tail;
 
-struct ir_operand *new_temp_var();
-struct ir_operand *new_variable();
-struct ir_operand *new_label();
+inline struct ir_operand *new_temp_var();
+inline struct ir_operand *new_variable();
+inline struct ir_operand *new_label();
 
 void add_ir_code(struct ir_code *code);
 void print_ir_code(struct ir_code *code);
 void print_ir_list(FILE *fp);
 struct ir_operand *ir_clean_temp_var(struct ir_operand *op_temp);
+void ir_clean_assign();
 
 #endif

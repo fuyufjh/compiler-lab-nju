@@ -6,25 +6,16 @@ static int count_temp_var = 1;
 static int count_variable = 1;
 static int count_label    = 1;
 
-struct ir_operand *new_temp_var() {
-    struct ir_operand *t = new(struct ir_operand);
-    t->kind = OP_TEMP_VAR;
-    t->no = count_temp_var++;
-    return t;
+inline struct ir_operand *new_temp_var() {
+    return new(struct ir_operand, OP_TEMP_VAR, OP_MDF_NONE, .no=count_temp_var++);
 }
 
-struct ir_operand *new_variable() {
-    struct ir_operand *t = new(struct ir_operand);
-    t->kind = OP_VARIABLE;
-    t->no = count_variable++;
-    return t;
+inline struct ir_operand *new_variable() {
+    return new(struct ir_operand, OP_VARIABLE, OP_MDF_NONE, .no=count_variable++);
 }
 
-struct ir_operand *new_label() {
-    struct ir_operand *t = new(struct ir_operand);
-    t->kind = OP_LABEL;
-    t->no = count_label++;
-    return t;
+inline struct ir_operand *new_label() {
+    return new(struct ir_operand, OP_LABEL, .no=count_label++);
 }
 
 /*
@@ -174,6 +165,50 @@ void print_ir_list(FILE *fp) {
 }
 
 void add_ir_code(struct ir_code *code) {
+    // optimizing begin
+    struct ir_operand *src = NULL;
+    switch (code->kind) {
+    case IR_ADD:
+        if (code->src1->kind == OP_IMMEDIATE && code->src2->kind == OP_IMMEDIATE) {
+            int val = code->src1->val_int + code->src2->val_int;
+            src = new(struct ir_operand, OP_IMMEDIATE, OP_MDF_NONE, .val_int=val);
+        } else if (code->src1->kind == OP_IMMEDIATE && code->src1->val_int == 0)
+            src = code->src2;
+        else if (code->src2->kind == OP_IMMEDIATE && code->src2->val_int == 0)
+            src = code->src1;
+        break;
+    case IR_SUB:
+        if (code->src1->kind == OP_IMMEDIATE && code->src2->kind == OP_IMMEDIATE) {
+            int val = code->src1->val_int - code->src2->val_int;
+            src = new(struct ir_operand, OP_IMMEDIATE, OP_MDF_NONE, .val_int=val);
+        } else if (code->src2->kind == OP_IMMEDIATE && code->src2->val_int == 0)
+            src = code->src1;
+        break;
+    case IR_MUL:
+        if (code->src1->kind == OP_IMMEDIATE && code->src2->kind == OP_IMMEDIATE) {
+            int val = code->src1->val_int * code->src2->val_int;
+            src = new(struct ir_operand, OP_IMMEDIATE, OP_MDF_NONE, .val_int=val);
+        } else if (code->src1->kind == OP_IMMEDIATE && code->src1->val_int == 1)
+            src = code->src2;
+        else if (code->src2->kind == OP_IMMEDIATE && code->src2->val_int == 1)
+            src = code->src1;
+        break;
+    case IR_DIV:
+        if (code->src1->kind == OP_IMMEDIATE && code->src2->kind == OP_IMMEDIATE) {
+            int val = code->src1->val_int / code->src2->val_int;
+            src = new(struct ir_operand, OP_IMMEDIATE, OP_MDF_NONE, .val_int=val);
+        } else if (code->src2->kind == OP_IMMEDIATE && code->src2->val_int == 1)
+            src = code->src1;
+        break;
+    default:
+        break;
+    }
+    if (src) {
+        struct ir_code *t = code;
+        code = new(struct ir_code, IR_ASSIGN, .dst=t->dst, .src=src);
+        free(t);
+    }
+    // optimizing end
     if (ir_list == NULL) {
         ir_list = ir_list_tail = code;
         code->prev = code->next = NULL;
@@ -197,4 +232,26 @@ struct ir_operand *ir_clean_temp_var(struct ir_operand *op_temp) {
         return ret;
     }
     return op_temp;
+}
+
+void ir_clean_assign() {
+    assert(ir_list_tail->kind == IR_ASSIGN && ir_list_tail->prev);
+    struct ir_code *prev = ir_list_tail->prev, *this = ir_list_tail;
+    switch (prev->kind) {//bug
+    case IR_ASSIGN:
+    case IR_ADD:
+    case IR_SUB:
+    case IR_MUL:
+    case IR_DIV:
+    case IR_CALL:
+    case IR_READ:
+        prev->op = this->op;
+        ir_list_tail = prev;
+        prev->next = NULL;
+        free(this);
+        count_temp_var--;
+        return;
+    default:
+        return;
+    }
 }
