@@ -9,50 +9,12 @@ static int count_label    = 1;
 inline struct ir_operand *new_temp_var() {
     return new(struct ir_operand, OP_TEMP_VAR, OP_MDF_NONE, .no=count_temp_var++);
 }
-
 inline struct ir_operand *new_variable() {
     return new(struct ir_operand, OP_VARIABLE, OP_MDF_NONE, .no=count_variable++);
 }
-
 inline struct ir_operand *new_label() {
     return new(struct ir_operand, OP_LABEL, .no=count_label++);
 }
-
-/*
-inline struct ir_list *create_ir_list(struct ir_code *code) {
-    struct ir_node *node = new(struct ir_node, code, NULL);
-    return new(struct ir_list, node, node);
-}
-
-void add_ir_code(struct ir_list *list, struct ir_code *code) {
-    struct ir_node *node = new(struct ir_node);
-    node->code = code;
-    node->next = NULL;
-    if (list->head == NULL) {
-        list->head = list->tail = node;
-    } else {
-        list->tail->next = node;
-        list->tail = node;
-    }
-}
-
-struct ir_list *concat_ir_list(struct ir_list *a, struct ir_list *b) {
-    if (a == NULL) return b;
-    if (b == NULL) return a;
-    if (a->head == NULL || a->tail == NULL) {
-        free(a);
-        return b;
-    }
-    if (b->head == NULL || b->tail == NULL) {
-        free(b);
-        return a;
-    }
-    a->tail->next = b->head;
-    a->tail = b->tail;
-    free(b);
-    return a;
-}
-*/
 
 static FILE *out;
 
@@ -237,7 +199,7 @@ struct ir_operand *ir_clean_temp_var(struct ir_operand *op_temp) {
 void ir_clean_assign() {
     assert(ir_list_tail->kind == IR_ASSIGN && ir_list_tail->prev);
     struct ir_code *prev = ir_list_tail->prev, *this = ir_list_tail;
-    switch (prev->kind) {//bug
+    switch (prev->kind) {
     case IR_ASSIGN:
     case IR_ADD:
     case IR_SUB:
@@ -245,6 +207,9 @@ void ir_clean_assign() {
     case IR_DIV:
     case IR_CALL:
     case IR_READ:
+        if (prev->op != this->src) return;
+        // this code: I don't know why, but the IRSIM does not support it...
+        if (this->op->modifier == OP_MDF_STAR) return;
         prev->op = this->op;
         ir_list_tail = prev;
         prev->next = NULL;

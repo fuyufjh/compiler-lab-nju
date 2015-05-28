@@ -10,7 +10,6 @@ inline int child_num(struct ast_node *node) {
     while (child(node, n)) n++;
     return n;
 }
-//#define CODE(...) print_ir_code(new(struct ir_code, __VA_ARGS__))
 #define CODE(...) add_ir_code(new(struct ir_code, __VA_ARGS__))
 
 struct var_type *func_ret_type;
@@ -168,18 +167,7 @@ bool var_type_equal(struct var_type *a, struct var_type *b) {
         if (sa || sb) return false;
         return true;
     case STRUCTURE:
-        // If you want the Name-Equal, rewrite this case statement as below:
-        //     return a->struct_type == b->struct_type;
-        if (a->struct_type == b->struct_type) return true;
-        struct field_list *fa = a->struct_type->fields;
-        struct field_list *fb = b->struct_type->fields;
-        while (fa && fb) {
-            if (!var_type_equal(fa->type, fb->type)) return false;
-            fa = fa->tail;
-            fb = fb->tail;
-        }
-        if (fa || fb) return false;
-        return true;
+        return a->struct_type == b->struct_type;
     case FUNCTION:
         return false;
     }
@@ -299,11 +287,6 @@ void dfs_fun_dec(struct ast_node *root, struct var_type *ret, bool dec_only) {
     char* name = dfs_id(root->child);
     if (child(root, 2)->symbol == VarList) {
         vt->func.params = dfs_var_list(child(root, 2));
-        /*struct func_param_list *p = vt->func.params;*/
-        /*while (p) {*/
-            /*insert_symbol(p->name, p->type);*/
-            /*p = p->tail;*/
-        /*}*/
     }
     if (dec_only) {
         set_declared_scope();
@@ -702,20 +685,13 @@ struct var_type *dfs_exp_cond(struct ast_node *root, \
 }
 
 struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
-    // ID
-    // LP Exp RP
-    // Exp DOT ID
-    // Exp LB Exp RB
     assert(root->symbol == Exp);
-    /*assert(child(root, 0)->symbol == ID && child(root, 1) == NULL);*/
-    /*struct ast_node* id_node = child(root ,0);*/
-    /*return find_symbol(id_node->value.str_value)->operand;*/
     char* name;
     struct symbol *symbol;
     struct ir_operand *t1, *t2, *t3, *t4;
     struct var_type *vt1, *vt2;
     switch (child(root, 0)->symbol) {
-    case ID:
+    case ID: // ID
         name = dfs_id(child(root, 0));
         symbol = find_symbol(name);
         if (symbol == NULL) {
@@ -850,40 +826,19 @@ struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
         case Exp: // LP Exp RP
             return dfs_exp(child(root, 1), op);
         case ASSIGNOP:
-            /*left = dfs_exp(child(root, 0), NULL);*/
             left = dfs_exp_addr(child(root, 0), t1 = new_temp_var());
             t1 = ir_clean_temp_var(t1);
             right = dfs_exp(child(root, 2), t2 = new_temp_var());
             t2 = ir_clean_temp_var(t2);
             if (left == NULL || right == NULL) return NULL;
-            /*struct ast_node *lnode = root->child, *p_dep = lnode;*/
-            /*int left_value = lnode->left_value;*/
-            /*while (p_dep->left_value == DEPENDS_ON_CHILD) {*/
-                /*p_dep = child(p_dep, p_dep->left_value_depends_child);*/
-            /*}*/
-            /*if (p_dep->left_value == DEPENDS_ON_ID) {*/
-                /*assert(p_dep->symbol == ID);*/
-                /*struct symbol *s_dep = find_symbol(p_dep->value.str_value);*/
-                /*if (s_dep && s_dep->type->kind != FUNCTION) {*/
-                    /*left_value = true;*/
-                /*}*/
-            /*} else {*/
-                /*left_value = p_dep->left_value;*/
-            /*}*/
-            /*lnode->left_value = left_value;*/
-            /*if (left_value == false) {*/
-                /*print_error(6, child(root, 0));*/
-                /*return NULL;*/
-            /*}*/
             if (!var_type_equal(left, right)) {
                 print_error(5, root);
                 return NULL;
             }
-            /*t1 = translate_exp_lval(child(root, 0));*/
             t3 = modify_operator(t1, OP_MDF_STAR);
             CODE(IR_ASSIGN, .dst=t3, .src=t2);
             // optimizing
-            //ir_clean_assign();
+            ir_clean_assign();
             if (op) CODE(IR_ASSIGN, .dst=op, .src=t3);
             return left;
         case DOT:
@@ -895,31 +850,6 @@ struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
             return vt;
         case LP:
             goto ID_LP_RP;
-        /*default: // Exp Op Exp  Op = AND, OR, PLUS, MINUS ...*/
-            /*left = dfs_exp(child(root, 0));*/
-            /*right = dfs_exp(child(root, 2));*/
-            /*if (left == NULL || right == NULL) return NULL;*/
-            /*if (!var_type_equal(left, right)) {*/
-                /*print_error(7, root);*/
-                /*return NULL;*/
-            /*}*/
-            /*switch (child(root, 1)->symbol) {*/
-            /*case AND:*/
-            /*case OR:*/
-                /*if (left->basic != INT) {*/
-                    /*print_error(7, root);*/
-                    /*return NULL;*/
-                /*}*/
-            /*case PLUS:*/
-            /*case MINUS:*/
-            /*case STAR:*/
-            /*case DIV:*/
-                /*if (left->kind != BASIC) {*/
-                    /*print_error(7, root);*/
-                    /*return NULL;*/
-                /*}*/
-            /*}*/
-            /*return left;*/
         case PLUS:
             ir_type = IR_ADD; goto ADD_SUB_MUL_DIV;
         case MINUS:
