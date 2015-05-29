@@ -1,7 +1,7 @@
 #include "common.h"
 #include "symbol_type.h"
 #include "symbol_table.h"
-#include "read_symbols.h"
+#include "translate.h"
 #include "error.h"
 #include "ir.h"
 

@@ -1,7 +1,7 @@
 #include "common.h"
 #include "syntax.tab.h"
 #include "ast.h"
-#include "read_symbols.h"
+#include "translate.h"
 
 extern void yyrestart(FILE * input_file);
 
@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
         print_ast(ast_root, 0);
     }
     init_read_write();
-    read_symbols();
+    translate();
     check_declared_fun();
 
     if (out) {

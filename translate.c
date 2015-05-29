@@ -1,4 +1,4 @@
-#include "read_symbols.h"
+#include "translate.h"
 #include "syntax.tab.h"
 #include "symbol_table.h"
 #include "error.h"
@@ -230,7 +230,7 @@ struct var_type *get_basic_var_type(char *type_name) {
     }
 }
 
-void read_symbols() {
+void translate() {
     dfs(ast_root);
 }
 

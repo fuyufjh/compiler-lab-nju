@@ -1,5 +1,5 @@
-#ifndef _READ_SYMBOLS_H
-#define _READ_SYMBOLS_H
+#ifndef _TRANSLATE_H
+#define _TRANSLATE_H
 
 #include "common.h"
 #include "symbol_table.h"
@@ -8,7 +8,7 @@
 #include "ir.h"
 
 char* get_var_type_str(struct var_type *vt);
-void read_symbols();
+void translate();
 void dfs(struct ast_node *root);
 void dfs_ext_def(struct ast_node *root);
 void dfs_ext_dec_list(struct ast_node *root, struct var_type *t);
