@@ -16,9 +16,7 @@ inline struct ir_operand *new_label() {
     return new(struct ir_operand, OP_LABEL, .no=count_label++);
 }
 
-static FILE *out;
-
-static char *get_operand_str(struct ir_operand *op) {
+char *get_operand_str(struct ir_operand *op) {
     static char buf[32];
     char *modifier;
     switch (op->modifier) {
@@ -56,7 +54,7 @@ char* relop_str[] = {
 };
 
 #pragma GCC diagnostic ignored "-Wsequence-point"
-void print_ir_code(struct ir_code *code) {
+void print_ir_code(FILE* out, struct ir_code *code) {
     char* to_free[3];
     int len = 0;
 #define OP(op) to_free[len++]=get_operand_str(code->op)
@@ -118,12 +116,26 @@ void print_ir_code(struct ir_code *code) {
 
 void print_ir_list(FILE *fp) {
     if (ir_list == NULL) return;
-    out = fp;
     struct ir_code *p = ir_list;
     while (p != NULL) {
-        print_ir_code(p);
+        print_ir_code(fp, p);
         p = p->next;
     }
+}
+
+struct ir_code *remove_ir_code(struct ir_code *code) {
+    if (code == ir_list) {
+        ir_list = code->next;
+        ir_list->prev = NULL;
+    } else if (code == ir_list_tail) {
+        ir_list_tail = code->prev;
+        ir_list_tail->next = NULL;
+    } else {
+        if (code->prev) code->prev->next = code->next;
+        if (code->next) code->next->prev = code->prev;
+    }
+    code->prev = code->next = NULL;
+    return code;
 }
 
 void add_ir_code(struct ir_code *code) {
@@ -190,7 +202,7 @@ struct ir_operand *ir_clean_temp_var(struct ir_operand *op_temp) {
         ir_list_tail = ir_list_tail->prev;
         ir_list_tail->next = NULL;
         free(p);
-        count_temp_var--;
+        //count_temp_var--;
         return ret;
     }
     return op_temp;
@@ -214,7 +226,7 @@ void ir_clean_assign() {
         ir_list_tail = prev;
         prev->next = NULL;
         free(this);
-        count_temp_var--;
+        //count_temp_var--;
         return;
     default:
         return;

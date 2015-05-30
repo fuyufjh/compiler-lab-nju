@@ -21,6 +21,7 @@
 // Global flags
 bool flag_print_ast;
 bool flag_verbose;
+bool flag_disable_block_optimize;
 
 // Others
 char *to_free;

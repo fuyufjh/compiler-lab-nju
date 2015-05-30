@@ -2,6 +2,7 @@
 #include "syntax.tab.h"
 #include "ast.h"
 #include "translate.h"
+#include "block_opt.h"
 
 extern void yyrestart(FILE * input_file);
 
@@ -12,6 +13,7 @@ int main(int argc, char* argv[]) {
         printf("Usage: parser [-p] [-v] source [out]\n");
         printf("  -p  print the abstract syntax tree (AST)\n");
         printf("  -v  verbose mode\n");
+        printf("  -B  disable basic block optimizing\n");
         printf("Copyright: Fu Yu @ NJU\n");
         return -1;
     }
@@ -25,6 +27,7 @@ int main(int argc, char* argv[]) {
         }
         else if (strcmp(argv[i], "-p") == 0) flag_print_ast = true;
         else if (strcmp(argv[i], "-v") == 0) flag_verbose = true;
+        else if (strcmp(argv[i], "-B") == 0) flag_disable_block_optimize = true;
         else printf("Invalid parameter \"%s\"\n", argv[i]);
     }
     FILE* fp = fopen(filename, "r");
@@ -54,6 +57,9 @@ int main(int argc, char* argv[]) {
     init_read_write();
     translate();
     check_declared_fun();
+    if (!flag_disable_block_optimize) {
+        block_optimize();
+    }
 
     if (out) {
         fp = fopen(out, "w");
