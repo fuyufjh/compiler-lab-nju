@@ -128,14 +128,15 @@ struct ir_code *do_block_optimize(struct ir_code *head, struct ir_code *tail) {
 FOUND_SHARED_PARENT:
             if (node) {
                 struct ir_code *temp = code;
-                printf("OPT: %s ---> %s\n", get_operand_str(temp->op), \
-                        get_operand_str(node->op));
+                if (flag_verbose)
+                    printf("OPT: %s ---> %s\n", get_operand_str(temp->op), \
+                            get_operand_str(node->op));
                 /*temp->op->no = node->op->no;*/
                 map(temp->op, node);
                 code = code->prev;
                 free(remove_ir_code(temp));
             } else {
-                node = new_node(code->op, code->kind, .left=node1, .right=node2);
+                node = new_node(code->op, code->kind);
                 map(code->op, node);
                 insert_dag_node(&node1->parent_left, node);
                 insert_dag_node(&node2->parent_right, node);
@@ -152,14 +153,14 @@ FOUND_SHARED_PARENT:
             }
             if (node) {
                 struct ir_code *temp = code;
-                printf("OPT: %s ---> %s\n", get_operand_str(temp->op), \
-                        get_operand_str(node->op));
-                /*temp->op->no = node->op->no;*/
+                if (flag_verbose)
+                    printf("OPT: %s ---> %s\n", get_operand_str(temp->op), \
+                            get_operand_str(node->op));
                 map(temp->op, node);
                 code = code->prev;
                 free(remove_ir_code(temp));
             } else {
-                node = new_node(code->op, code->kind, .left=node1);
+                node = new_node(code->op, code->kind);
                 map(code->op, node);
                 insert_dag_node(&node1->parent_assign, node);
             }
@@ -207,15 +208,17 @@ void block_optimize() {
         case IR_CALL:
             block_size++;
             if (block_size >= 2) {
-                printf("==== BEFORE OPTIMIZING ==== (%d)\n", block_size);
-                for (show = head; show != p->next; show = show->next)
-                    print_ir_code(stdout, show);
-                printf("==== AFTER  OPTIMIZING ==== \n");
-
+                if (flag_verbose) {
+                    printf("==== BEFORE OPTIMIZING ==== (%d)\n", block_size);
+                    for (show = head; show != p->next; show = show->next)
+                        print_ir_code(stdout, show);
+                    printf("==== AFTER  OPTIMIZING ==== \n");
+                }
                 p = do_block_optimize(head, p);
-
-                for (show = head; show != p->next; show = show->next)
-                    print_ir_code(stdout, show);
+                if (flag_verbose) {
+                    for (show = head; show != p->next; show = show->next)
+                        print_ir_code(stdout, show);
+                }
             }
             block_size = 0;
             head = p->next;
@@ -225,6 +228,7 @@ void block_optimize() {
             break;
         }
     }
-    printf("=========================== \n");
+    if (flag_verbose)
+        printf("=========================== \n");
 }
 

@@ -1,6 +1,8 @@
 #ifndef _AST_H
 #define _AST_H
 
+#include "common.h"
+
 enum ast_value_type {
     NO_VALUE,
     INT_VALUE,
@@ -57,5 +59,6 @@ void print_ast(struct ast_node *root, int space);
 struct ast_node *make_ast_node_terminal(int st, union ast_value value);
 struct ast_node *make_ast_node_nonterminal(int st);
 char *get_ast_node_code(struct ast_node *node);
+SYMBOL_STRING get_child_symbols_hash(struct ast_node *node);
 
 #endif

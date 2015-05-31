@@ -1,3 +1,4 @@
+#include "common.h"
 #include "translate.h"
 #include "syntax.tab.h"
 #include "symbol_table.h"
@@ -702,6 +703,7 @@ struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
     struct var_type *vt1, *vt2;
     switch (child(root, 0)->symbol) {
     case ID: // ID
+        if (child(root, 1)) return NULL;
         name = dfs_id(child(root, 0));
         symbol = find_symbol(name);
         if (symbol == NULL) {
@@ -718,6 +720,10 @@ struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
         switch (child(root, 1)->symbol) {
         case LB: // Exp LB Exp RB
             vt1 = dfs_exp_addr(child(root, 0), t1 = new_temp_var());
+            if (vt1 == NULL || vt1->kind != ARRAY) {
+                print_error(10, child(root, 0), get_ast_node_code(child(root, 0)));
+                return NULL;
+            }
             t1 = ir_clean_temp_var(t1);
             vt2 = dfs_exp(child(root, 2), t2 = new_temp_var());
             t2 = ir_clean_temp_var(t2);
@@ -965,6 +971,7 @@ ID_LP_RP:
     } else if (child(root, 0)->symbol == Exp) {
         // Exp LB Exp RB
         vt = dfs_exp_addr(root, t1 = new_temp_var());
+        if (vt == NULL) return NULL;
         t1 = ir_clean_temp_var(t1);
         if (vt == NULL) return NULL;
         t2 = modify_operator(t1, OP_MDF_STAR);
@@ -1010,7 +1017,11 @@ void dfs_stmt(struct ast_node *root) {
             print_error(8, child(root, 1));
             return;
         }
-        CODE(IR_RETURN, .op=t1);
+        if (vt->kind == BASIC) {
+            CODE(IR_RETURN, .op=t1);
+        } else {
+            CODE(IR_RETURN, .op=modify_operator(t1, OP_MDF_AND));
+        }
         return;
     case IF:
         if (child_num(root) == 5) { // IF LP Exp RP Stmt

@@ -6,7 +6,6 @@
 struct dag_node {
     struct ir_operand *op;
     enum ir_type type;
-    struct dag_node *left, *right;
     struct dag_node_list *parent_left, *parent_right, *parent_assign;
 };
 

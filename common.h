@@ -25,5 +25,6 @@ bool flag_disable_block_optimize;
 
 // Others
 char *to_free;
+typedef long long SYMBOL_STRING;
 
 #endif

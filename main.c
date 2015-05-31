@@ -10,7 +10,7 @@ bool no_error = true;
 
 int main(int argc, char* argv[]) {
     if (argc <= 1) {
-        printf("Usage: parser [-p] [-v] source [out]\n");
+        printf("Usage: parser [-p] [-v] [-B] source [out]\n");
         printf("  -p  print the abstract syntax tree (AST)\n");
         printf("  -v  verbose mode\n");
         printf("  -B  disable basic block optimizing\n");
@@ -57,6 +57,7 @@ int main(int argc, char* argv[]) {
     init_read_write();
     translate();
     check_declared_fun();
+    if (!no_error) return 0;
     if (!flag_disable_block_optimize) {
         block_optimize();
     }
