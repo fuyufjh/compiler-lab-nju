@@ -174,12 +174,12 @@ CONTINUE:
             }
             code->src->modifier = OP_MDF_STAR;
         }
-        if (code->src1 && code->src1->modifier == OP_MDF_STAR) {
-            code->src1->modifier = OP_MDF_NONE;
-            if ((node = find_dag_node(code->src1))) {
-                code->src1 = new(struct ir_operand, node->op->kind, .no=node->op->no);
+        if (code->src2 && code->src2->modifier == OP_MDF_STAR) {
+            code->src2->modifier = OP_MDF_NONE;
+            if ((node = find_dag_node(code->src2))) {
+                code->src2 = new(struct ir_operand, node->op->kind, .no=node->op->no);
             }
-            code->src1->modifier = OP_MDF_STAR;
+            code->src2->modifier = OP_MDF_STAR;
         }
         if (code->op && code->op->modifier == OP_MDF_STAR) {
             code->op->modifier = OP_MDF_NONE;
