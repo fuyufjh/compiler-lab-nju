@@ -74,6 +74,8 @@ struct ir_code {
 } *ir_list, *ir_list_tail;
 
 struct ir_code *remove_ir_code(struct ir_code *code);
+struct ir_code *insert_ir_code_before(struct ir_code *place, struct ir_code *code);
+struct ir_code *insert_ir_code_after(struct ir_code *place, struct ir_code *code);
 
 inline struct ir_operand *new_temp_var();
 inline struct ir_operand *new_variable();

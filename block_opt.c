@@ -95,8 +95,6 @@ struct ir_code *do_block_optimize(struct ir_code *head, struct ir_code *tail) {
                 (code->src->modifier == OP_MDF_STAR) || \
                 (code->src2 && code->src2->modifier == OP_MDF_STAR))
             goto CONTINUE;
-        // skip varibales
-        if (code->op->kind == OP_VARIABLE) goto CONTINUE;
 
         int reusable = true;
         if ((node1 = find_dag_node(code->src))) {
@@ -131,7 +129,6 @@ FOUND_SHARED_PARENT:
                 if (flag_verbose)
                     printf("OPT: %s ---> %s\n", get_operand_str(temp->op), \
                             get_operand_str(node->op));
-                /*temp->op->no = node->op->no;*/
                 map(temp->op, node);
                 code = code->prev;
                 free(remove_ir_code(temp));
@@ -187,6 +184,15 @@ CONTINUE:
                 code->op = new(struct ir_operand, node->op->kind, .no=node->op->no);
             }
             code->op->modifier = OP_MDF_STAR;
+        }
+    }
+    // if some veriables are mapped, store them at the end
+    struct map_operand_node *iter;
+    for (iter = map_head; iter; iter = iter->next) {
+        if (iter->op->kind == OP_VARIABLE && !operand_equal(iter->op, iter->node->op)) {
+            struct ir_code *code = new(struct ir_code, IR_ASSIGN, \
+                    .dst=iter->op, .src=iter->node->op, .prev=NULL, .next=NULL);
+            tail = insert_ir_code_before(tail, code)->next;
         }
     }
     tail->next = block_next;

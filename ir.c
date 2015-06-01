@@ -124,7 +124,9 @@ void print_ir_list(FILE *fp) {
 }
 
 struct ir_code *remove_ir_code(struct ir_code *code) {
-    if (code == ir_list) {
+    if (code == ir_list && code == ir_list_tail) {
+        ir_list = ir_list_tail = NULL;
+    } else if (code == ir_list) {
         ir_list = code->next;
         ir_list->prev = NULL;
     } else if (code == ir_list_tail) {
@@ -135,6 +137,32 @@ struct ir_code *remove_ir_code(struct ir_code *code) {
         if (code->next) code->next->prev = code->prev;
     }
     code->prev = code->next = NULL;
+    return code;
+}
+
+struct ir_code *insert_ir_code_before(struct ir_code *place, struct ir_code *code) {
+    if (place == ir_list) {
+        ir_list = code;
+        code->prev = NULL;
+    } else {
+        if (place->prev) place->prev->next = code;
+        code->prev = place->prev;
+    }
+    code->next = place;
+    place->prev = code;
+    return code;
+}
+
+struct ir_code *insert_ir_code_after(struct ir_code *place, struct ir_code *code) {
+    if (place == ir_list_tail) {
+        ir_list_tail = code;
+        code->next = NULL;
+    } else {
+        if (place->next) place->next->prev = code;
+        code->next = place->next;
+    }
+    code->prev = place;
+    place->next = code;
     return code;
 }
 
