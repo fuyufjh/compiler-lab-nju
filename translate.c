@@ -6,7 +6,7 @@
 
 #define child(node, n) \
     (n == 0 ? node->child : get_nth_child_ast_node(node, n))
-inline int child_num(struct ast_node *node) {
+static int child_num(struct ast_node *node) {
     int n = 0;
     while (child(node, n)) n++;
     return n;

@@ -1,6 +1,7 @@
 #ifndef _BLOCK_OPT_H
 #define _BLOCK_OPT_H
 
+#include "common.h"
 #include "ir.h"
 
 struct dag_node {

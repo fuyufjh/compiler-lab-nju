@@ -1,5 +1,5 @@
 CC		= gcc
-CFLAGS	= -lfl -ly -g -Wall
+CFLAGS	= -lfl -ly -g -Wall -std=gnu99
 CFILES	= $(shell find -name "*.c")
 HFILES	= $(shell find -name "*.h")
 

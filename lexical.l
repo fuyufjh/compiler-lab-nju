@@ -3,6 +3,7 @@ typedef struct ast_node* AST_NODE;
 #define YYSTYPE AST_NODE
 
 #include <stdarg.h>
+#include <string.h>
 #include "ast.h"
 #include "syntax.tab.h"
 

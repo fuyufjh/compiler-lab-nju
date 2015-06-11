@@ -2,15 +2,11 @@
 #define _COMMON_H
 
 // General header files
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
-
-// General macro define
-#define bool int
-#define true 1
-#define false 0
 
 // WOW! I invented this! DIAO BAO LE!
 #define new(type, ...) ({\
