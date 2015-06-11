@@ -60,5 +60,10 @@ struct ast_node *make_ast_node_terminal(int st, union ast_value value);
 struct ast_node *make_ast_node_nonterminal(int st);
 char *get_ast_node_code(struct ast_node *node);
 SYMBOL_STRING get_child_symbols_hash(struct ast_node *node);
+SYMBOL_STRING get_symbols_string_hash(int n, ...);
+
+#define NUM_NT_SYMBOLS (Args - Program + 1)
+#define get_symbol_number(symbol) \
+    (symbol<(int)ASSIGNOP ? symbol+1 : symbol-(int)ASSIGNOP+NUM_NT_SYMBOLS+1)
 
 #endif

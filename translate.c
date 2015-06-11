@@ -12,6 +12,19 @@ inline int child_num(struct ast_node *node) {
     return n;
 }
 #define CODE(...) add_ir_code(new(struct ir_code, __VA_ARGS__))
+#define CHILD_HASH(node) get_child_symbols_hash(node)
+
+#define SH(s) ((SYMBOL_STRING)get_symbol_number(s))
+#define HASH_1(s1) (SH(s1))
+#define HASH_2(s1, s2) ((HASH_1(s1)<<6) + SH(s2))
+#define HASH_3(s1, s2, s3) ((HASH_2(s1, s2)<<6) + SH(s3))
+#define HASH_4(s1, s2, s3, s4) ((HASH_3(s1, s2, s3)<<6) + SH(s4))
+#define HASH_5(s1, s2, s3, s4, s5) \
+    ((HASH_4(s1, s2, s3, s4)<<6) + SH(s5))
+#define HASH_6(s1, s2, s3, s4, s5, s6) \
+    ((HASH_5(s1, s2, s3, s4, s5)<<6) + SH(s6))
+#define HASH_7(s1, s2, s3, s4, s5, s6, s7) \
+    ((HASH_6(s1, s2, s3, s4, s5, s6)<<6) + SH(s7))
 
 struct var_type *func_ret_type;
 
@@ -262,17 +275,14 @@ void dfs_ext_def(struct ast_node *root) {
     assert(root->symbol == ExtDef);
     struct var_type *var_type = dfs_specifier(child(root, 0));
     if (var_type == NULL) return;
-    switch (child(root, 1)->symbol) {
-    // ExtDef: Specifier ExtDecList SEMI
-    case ExtDecList:
+    switch (CHILD_HASH(root)) {
+    case HASH_3(Specifier, ExtDecList, SEMI):
         dfs_ext_dec_list(child(root, 1), var_type);
         break;
-    // ExtDef: Specifier SEMI
-    case SEMI:
+    case HASH_2(Specifier, SEMI):
         break;
-    // ExtDef: Specifier FunDec CompSt
-    // ExtDef: Specifier FunDec SEMI
-    case FunDec:
+    case HASH_3(Specifier, FunDec, CompSt):
+    case HASH_3(Specifier, FunDec, SEMI):
         func_ret_type = var_type;
         push_scope();
         if (child(root, 2)->symbol == CompSt) {
@@ -584,9 +594,11 @@ struct field_list *dfs_dec(struct ast_node *root, struct var_type *vt) {
 
 void dfs_comp_st(struct ast_node *root) {
     assert(root->symbol == CompSt);
+    // if has DefList
     if (child(root, 1)->symbol == DefList) {
         dfs_def_list(child(root, 1));
     }
+    // if has StmtList
     if (child(root, 2) && child(root,2)->symbol == StmtList) {
         dfs(child(root, 2));
     } else if (child(root, 1) && child(root,1)->symbol == StmtList) {
@@ -606,10 +618,10 @@ bool params_args_equal(struct func_param_list *param, struct func_arg_list *arg)
 struct var_type *dfs_exp_cond(struct ast_node *root, \
         struct ir_operand *label_true, struct ir_operand *label_false) {
     assert(root->symbol == Exp);
-    int n = child_num(root);
     struct ir_operand *t1, *t2, *label1;
     struct var_type *vt, *left, *right;
-    if (n == 3 && child(root, 1)->symbol == RELOP) {
+    switch (CHILD_HASH(root)) {
+    case HASH_3(Exp, RELOP, Exp):
         left = dfs_exp(child(root, 0), t1 = new_temp_var());
         t1 = ir_clean_temp_var(t1);
         right = dfs_exp(child(root, 2), t2 = new_temp_var());
@@ -631,7 +643,7 @@ struct var_type *dfs_exp_cond(struct ast_node *root, \
                     .relop=get_not_relop(child(root, 1)), .dst=label_false);
         }
         return left;
-    } else if (n == 3 && child(root, 1)->symbol == AND) {
+    case HASH_3(Exp, AND, Exp):
         if (label_false) {
             left = dfs_exp_cond(child(root, 0), NULL, label_false);
             right = dfs_exp_cond(child(root, 2), label_true, label_false);
@@ -650,7 +662,7 @@ struct var_type *dfs_exp_cond(struct ast_node *root, \
             return NULL;
         }
         return left;
-    } else if (n == 3 && child(root, 1)->symbol == OR) {
+    case HASH_3(Exp, OR, Exp):
         if (label_true) {
             left = dfs_exp_cond(child(root, 0), label_true, NULL);
             right = dfs_exp_cond(child(root, 2), label_true, label_false);
@@ -669,7 +681,7 @@ struct var_type *dfs_exp_cond(struct ast_node *root, \
             return NULL;
         }
         return left;
-    } else if (n == 2 && child(root, 0)->symbol == NOT) {
+    case HASH_2(NOT, Exp):
         vt = dfs_exp_cond(child(root, 1), label_false, label_true);
         if (vt == NULL) return NULL;
         if (vt->kind != BASIC || vt->basic != INT) {
@@ -677,7 +689,7 @@ struct var_type *dfs_exp_cond(struct ast_node *root, \
             return NULL;
         }
         return vt;
-    } else {
+    default:
         vt = dfs_exp(root, t1 = new_temp_var());
         t1 = ir_clean_temp_var(t1);
         if (label_true && label_false) {
@@ -701,8 +713,8 @@ struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
     struct symbol *symbol;
     struct ir_operand *t1, *t2, *t3, *t4;
     struct var_type *vt1, *vt2;
-    switch (child(root, 0)->symbol) {
-    case ID: // ID
+    switch (CHILD_HASH(root)) {
+    case HASH_1(ID):
         if (child(root, 1)) return NULL;
         name = dfs_id(child(root, 0));
         symbol = find_symbol(name);
@@ -714,70 +726,67 @@ struct var_type *dfs_exp_addr(struct ast_node *root, struct ir_operand *op) {
         t2 = modify_operator(t1, OP_MDF_AND);
         if (op) CODE(IR_ASSIGN, .dst=op, .src=t2);
         return symbol->type;
-    case LP: // LP Exp RP
+    case HASH_3(LP, Exp, RP):
         return dfs_exp_addr(child(root, 1), op);
-    case Exp:
-        switch (child(root, 1)->symbol) {
-        case LB: // Exp LB Exp RB
-            vt1 = dfs_exp_addr(child(root, 0), t1 = new_temp_var());
-            if (vt1 == NULL || vt1->kind != ARRAY) {
-                print_error(10, child(root, 0), get_ast_node_code(child(root, 0)));
-                return NULL;
-            }
-            t1 = ir_clean_temp_var(t1);
-            vt2 = dfs_exp(child(root, 2), t2 = new_temp_var());
-            t2 = ir_clean_temp_var(t2);
-            if (vt2 == NULL || vt2->kind != BASIC || vt2->basic != INT) {
-                print_error(12, child(root, 2), get_ast_node_code(child(root, 2)));// TODO
-            }
-            struct var_type *vt = new(struct var_type);
-            *vt = *vt1;
-            vt->array.size_list = vt->array.size_list->next;
-            if (vt->array.size_list == NULL) {
-                struct var_type *temp = vt;
-                vt = vt->array.elem;
-                free(temp);
-                if (t2->kind == OP_IMMEDIATE) {
-                    t3 = IMME_OP(4*t2->val_int);
-                    if (op) CODE(IR_ADD, .dst=op, .src1=t1, .src2=t3);
-                } else {
-                    CODE(IR_MUL, .dst=(t3 = new_temp_var()), .src1=t2, .src2=&imme_four);
-                    t3 = ir_clean_temp_var(t3);
-                    if (op) CODE(IR_ADD, .dst=op, .src1=t1, .src2=t3);
-                }
-            } else {
-                int dim_size = 4;
-                struct array_size_list *p = vt->array.size_list;
-                while (p) {
-                    dim_size *= p->size;
-                    p = p->next;
-                }
-                t3 = new_temp_var();
-                t4 = IMME_OP(dim_size);
-                CODE(IR_MUL, .dst=t3, .src1=t2, .src2=t4);
-                t3 = ir_clean_temp_var(t3);
-                if (op) CODE(IR_ADD, .dst=op, .src1=t3, .src2=t1);
-            }
-            return vt;
-        case DOT: // Exp DOT ID
-            vt = dfs_exp_addr(child(root, 0), t1 = new_temp_var());
-            t1 = ir_clean_temp_var(t1);
-            if (vt == NULL) return NULL;
-            if (vt->kind != STRUCTURE) {
-                print_error(13, child(root, 0));
-                return NULL;
-            }
-            char* name = dfs_id(child(root, 2));
-            struct var_type *field_vt = get_field_type(vt->struct_type, name);
-            if (field_vt == NULL) {
-                print_error(14, child(root, 2), name);
-                return NULL;
-            }
-            int offset = get_field_offset(vt->struct_type, name);
-            t2 = IMME_OP(offset);
-            if (op) CODE(IR_ADD, .dst=op, .src1=t1, .src2=t2);
-            return field_vt;
+    case HASH_4(Exp, LB, Exp, RB):
+        vt1 = dfs_exp_addr(child(root, 0), t1 = new_temp_var());
+        if (vt1 == NULL || vt1->kind != ARRAY) {
+            print_error(10, child(root, 0), get_ast_node_code(child(root, 0)));
+            return NULL;
         }
+        t1 = ir_clean_temp_var(t1);
+        vt2 = dfs_exp(child(root, 2), t2 = new_temp_var());
+        t2 = ir_clean_temp_var(t2);
+        if (vt2 == NULL || vt2->kind != BASIC || vt2->basic != INT) {
+            print_error(12, child(root, 2), get_ast_node_code(child(root, 2)));// TODO
+        }
+        struct var_type *vt = new(struct var_type);
+        *vt = *vt1;
+        vt->array.size_list = vt->array.size_list->next;
+        if (vt->array.size_list == NULL) {
+            struct var_type *temp = vt;
+            vt = vt->array.elem;
+            free(temp);
+            if (t2->kind == OP_IMMEDIATE) {
+                t3 = IMME_OP(4*t2->val_int);
+                if (op) CODE(IR_ADD, .dst=op, .src1=t1, .src2=t3);
+            } else {
+                CODE(IR_MUL, .dst=(t3 = new_temp_var()), .src1=t2, .src2=&imme_four);
+                t3 = ir_clean_temp_var(t3);
+                if (op) CODE(IR_ADD, .dst=op, .src1=t1, .src2=t3);
+            }
+        } else {
+            int dim_size = 4;
+            struct array_size_list *p = vt->array.size_list;
+            while (p) {
+                dim_size *= p->size;
+                p = p->next;
+            }
+            t3 = new_temp_var();
+            t4 = IMME_OP(dim_size);
+            CODE(IR_MUL, .dst=t3, .src1=t2, .src2=t4);
+            t3 = ir_clean_temp_var(t3);
+            if (op) CODE(IR_ADD, .dst=op, .src1=t3, .src2=t1);
+        }
+        return vt;
+    case HASH_3(Exp, DOT, ID):
+        vt = dfs_exp_addr(child(root, 0), t1 = new_temp_var());
+        t1 = ir_clean_temp_var(t1);
+        if (vt == NULL) return NULL;
+        if (vt->kind != STRUCTURE) {
+            print_error(13, child(root, 0));
+            return NULL;
+        }
+        char* name = dfs_id(child(root, 2));
+        struct var_type *field_vt = get_field_type(vt->struct_type, name);
+        if (field_vt == NULL) {
+            print_error(14, child(root, 2), name);
+            return NULL;
+        }
+        int offset = get_field_offset(vt->struct_type, name);
+        t2 = IMME_OP(offset);
+        if (op) CODE(IR_ADD, .dst=op, .src1=t1, .src2=t2);
+        return field_vt;
     }
     return NULL;
 }
@@ -789,116 +798,93 @@ struct var_type *dfs_exp(struct ast_node *root, struct ir_operand *op) {
     struct var_type *vt, *left, *right;
     struct ir_operand *t1, *t2, *t3, *label1;
     enum ir_type ir_type;
-    switch (child_num(root)) {
     int value;
-    case 1:
-        switch (child(root, 0)->symbol) {
-        case ID:
-            name = dfs_id(child(root, 0));
-            symbol = find_symbol(name);
-            if (symbol == NULL) {
-                print_error(1, child(root, 0), name);
-                return NULL;
-            }
-            if (op) CODE(IR_ASSIGN, .dst=op, .src=symbol->operand);
-            return symbol->type;
-        case INT:
-            value = dfs_int(child(root, 0));
-            t1 = IMME_OP(value);
-            if (op) CODE(IR_ASSIGN, .dst=op, .src=t1);
-            return &int_type;
-        case FLOAT:
-            dfs_float(child(root, 0));
-            perror("Float value is not supported.");
-            exit(1);
-            return &float_type;
+    switch (CHILD_HASH(root)) {
+    case HASH_1(ID):
+        name = dfs_id(child(root, 0));
+        symbol = find_symbol(name);
+        if (symbol == NULL) {
+            print_error(1, child(root, 0), name);
+            return NULL;
         }
-    case 2:
-        switch (child(root, 0)->symbol) {
-        case MINUS:
-            vt = dfs_exp(child(root, 1), t1 = new_temp_var());
-            t1 = ir_clean_temp_var(t1);
-            if (vt == NULL) return NULL;
-            if (vt->kind != BASIC) {
-                print_error(7, child(root, 1));
-                return NULL;
-            }
-            if (op) CODE(IR_SUB, .dst=op, .src1=&imme_zero, .src2=t1);
-            return vt;
-        case NOT:
-            if (op) CODE(IR_ASSIGN, .dst=op, .src=&imme_zero);
-            vt = dfs_exp(child(root, 1), label1 = new_label());
-            if (vt == NULL) return NULL;
-            if (vt->kind != BASIC || vt->basic != INT) {
-                print_error(7, child(root, 1));
-                return NULL;
-            }
-            if (op) CODE(IR_ASSIGN, .dst=op, .src=&imme_one);
-            CODE(IR_LABEL, .op=label1);
-            return vt;
+        if (op) CODE(IR_ASSIGN, .dst=op, .src=symbol->operand);
+        return symbol->type;
+    case HASH_1(INT):
+        value = dfs_int(child(root, 0));
+        t1 = IMME_OP(value);
+        if (op) CODE(IR_ASSIGN, .dst=op, .src=t1);
+        return &int_type;
+    case HASH_1(FLOAT):
+        dfs_float(child(root, 0));
+        perror("Float value is not supported.");
+        exit(1);
+        return &float_type;
+    case HASH_2(MINUS, Exp):
+        vt = dfs_exp(child(root, 1), t1 = new_temp_var());
+        t1 = ir_clean_temp_var(t1);
+        if (vt == NULL) return NULL;
+        if (vt->kind != BASIC) {
+            print_error(7, child(root, 1));
+            return NULL;
         }
-    case 3:
-        switch (child(root, 1)->symbol) {
-        case Exp: // LP Exp RP
-            return dfs_exp(child(root, 1), op);
-        case ASSIGNOP:
-            left = dfs_exp_addr(child(root, 0), t1 = new_temp_var());
-            t1 = ir_clean_temp_var(t1);
-            right = dfs_exp(child(root, 2), t2 = new_temp_var());
-            t2 = ir_clean_temp_var(t2);
-            if (left == NULL || right == NULL) return NULL;
-            if (!var_type_equal(left, right)) {
-                print_error(5, root);
-                return NULL;
-            }
-            t3 = modify_operator(t1, OP_MDF_STAR);
-            CODE(IR_ASSIGN, .dst=t3, .src=t2);
-            // optimizing
-            ir_clean_assign();
-            if (op) CODE(IR_ASSIGN, .dst=op, .src=t3);
-            return left;
-        case DOT:
-            vt = dfs_exp_addr(root, t1=new_temp_var());
-            t1 = ir_clean_temp_var(t1);
-            if (vt == NULL) return NULL;
-            t2 = modify_operator(t1, OP_MDF_STAR);
-            if (op) CODE(IR_ASSIGN, .dst=op, .src=t2);
-            return vt;
-        case LP:
-            goto ID_LP_RP;
-        case PLUS:
-            ir_type = IR_ADD; goto ADD_SUB_MUL_DIV;
-        case MINUS:
-            ir_type = IR_SUB; goto ADD_SUB_MUL_DIV;
-        case STAR:
-            ir_type = IR_MUL; goto ADD_SUB_MUL_DIV;
-        case DIV:
-            ir_type = IR_DIV; goto ADD_SUB_MUL_DIV;
+        if (op) CODE(IR_SUB, .dst=op, .src1=&imme_zero, .src2=t1);
+        return vt;
+    case HASH_3(LP, Exp, RP): // LP Exp RP
+        return dfs_exp(child(root, 1), op);
+    case HASH_3(Exp, ASSIGNOP, Exp):
+        left = dfs_exp_addr(child(root, 0), t1 = new_temp_var());
+        t1 = ir_clean_temp_var(t1);
+        right = dfs_exp(child(root, 2), t2 = new_temp_var());
+        t2 = ir_clean_temp_var(t2);
+        if (left == NULL || right == NULL) return NULL;
+        if (!var_type_equal(left, right)) {
+            print_error(5, root);
+            return NULL;
+        }
+        t3 = modify_operator(t1, OP_MDF_STAR);
+        CODE(IR_ASSIGN, .dst=t3, .src=t2);
+        // optimizing
+        ir_clean_assign();
+        if (op) CODE(IR_ASSIGN, .dst=op, .src=t3);
+        return left;
+    case HASH_3(Exp, DOT, ID):
+        vt = dfs_exp_addr(root, t1=new_temp_var());
+        t1 = ir_clean_temp_var(t1);
+        if (vt == NULL) return NULL;
+        t2 = modify_operator(t1, OP_MDF_STAR);
+        if (op) CODE(IR_ASSIGN, .dst=op, .src=t2);
+        return vt;
+    case HASH_3(Exp, PLUS, Exp):
+        ir_type = IR_ADD; goto ADD_SUB_MUL_DIV;
+    case HASH_3(Exp, MINUS, Exp):
+        ir_type = IR_SUB; goto ADD_SUB_MUL_DIV;
+    case HASH_3(Exp, STAR, Exp):
+        ir_type = IR_MUL; goto ADD_SUB_MUL_DIV;
+    case HASH_3(Exp, DIV, Exp):
+        ir_type = IR_DIV; goto ADD_SUB_MUL_DIV;
 ADD_SUB_MUL_DIV:
-            left = dfs_exp(child(root, 0), t1 = new_temp_var());
-            t1 = ir_clean_temp_var(t1);
-            right = dfs_exp(child(root, 2), t2 = new_temp_var());
-            t2 = ir_clean_temp_var(t2);
-            if (op) CODE(ir_type, .dst=op, .src1=t1, .src2=t2);
-            if (left == NULL || right == NULL) return NULL;
-            if (!var_type_equal(left, right)) {
-                print_error(7, root);
-                return NULL;
-            }
-            return left;
-        case AND:
-        case OR:
-        case RELOP:
-            if (op) CODE(IR_ASSIGN, .dst=op, .src=&imme_zero);
-            vt = dfs_exp_cond(root, NULL, label1 = new_label());
-            if (op) CODE(IR_ASSIGN, .dst=op, .src=&imme_one);
-            CODE(IR_LABEL, .op=label1);
-            return vt;
+        left = dfs_exp(child(root, 0), t1 = new_temp_var());
+        t1 = ir_clean_temp_var(t1);
+        right = dfs_exp(child(root, 2), t2 = new_temp_var());
+        t2 = ir_clean_temp_var(t2);
+        if (op) CODE(ir_type, .dst=op, .src1=t1, .src2=t2);
+        if (left == NULL || right == NULL) return NULL;
+        if (!var_type_equal(left, right)) {
+            print_error(7, root);
+            return NULL;
         }
-    }
-    if (child(root, 0)->symbol == ID) {
-        // ID LP Args RP
-ID_LP_RP:
+        return left;
+    case HASH_2(NOT, Exp):
+    case HASH_3(Exp, AND, Exp):
+    case HASH_3(Exp, OR, Exp):
+    case HASH_3(Exp, RELOP, Exp):
+        if (op) CODE(IR_ASSIGN, .dst=op, .src=&imme_zero);
+        vt = dfs_exp_cond(root, NULL, label1 = new_label());
+        if (op) CODE(IR_ASSIGN, .dst=op, .src=&imme_one);
+        CODE(IR_LABEL, .op=label1);
+        return vt;
+    case HASH_4(ID, LP, Args, RP):
+    case HASH_3(ID, LP, RP):
         name = dfs_id(root->child);
         symbol = find_symbol(name);
         if (symbol == NULL) {
@@ -962,14 +948,14 @@ ID_LP_RP:
         } else if (strcmp(symbol->name, "write") == 0) {
             CODE(IR_WRITE, .op=arg_list->op);
         } else {
-            print_ir_args(arg_list);
+            if (arg_list)
+                print_ir_args(arg_list);
             struct ir_operand *func = new(struct ir_operand, OP_FUNCTION, \
                     .name=symbol->name);
             CODE(IR_CALL, .ret=op ? op:(t1 = new_temp_var()), .func=func);
         }
         return symbol->type->func.ret;
-    } else if (child(root, 0)->symbol == Exp) {
-        // Exp LB Exp RB
+    case HASH_4(Exp, LB, Exp, RB):
         vt = dfs_exp_addr(root, t1 = new_temp_var());
         if (vt == NULL) return NULL;
         t1 = ir_clean_temp_var(t1);
@@ -1001,16 +987,16 @@ void dfs_stmt(struct ast_node *root) {
     assert(root->symbol == Stmt);
     struct ir_operand *t1, *label1, *label2;
     struct var_type *vt;
-    switch (root->child->symbol) {
-    case Exp:
+    switch (CHILD_HASH(root)) {
+    case HASH_2(Exp, SEMI):
         dfs_exp(child(root, 0), NULL);
         return;
-    case CompSt:
+    case HASH_1(CompSt):
         push_scope();
         dfs_comp_st(child(root, 0));
         pop_scope();
         return;
-    case RETURN:
+    case HASH_3(RETURN, Exp, SEMI):
         vt = dfs_exp(child(root, 1), t1 = new_temp_var());
         t1 = ir_clean_temp_var(t1);
         if (!var_type_equal(vt, func_ret_type)) {
@@ -1023,22 +1009,21 @@ void dfs_stmt(struct ast_node *root) {
             CODE(IR_RETURN, .op=modify_operator(t1, OP_MDF_AND));
         }
         return;
-    case IF:
-        if (child_num(root) == 5) { // IF LP Exp RP Stmt
-            dfs_exp_cond(child(root, 2), NULL, label1 = new_label());
-            dfs_stmt(child(root, 4));
-            CODE(IR_LABEL, .op=label1);
-        } else { // IF LP Exp RP Stmt ELSE Stmt
-            dfs_exp_cond(child(root, 2), NULL, label1 = new_label());
-            dfs_stmt(child(root, 4));
-            label2 = new_label();
-            CODE(IR_GOTO, .op=label2);
-            CODE(IR_LABEL, .op=label1);
-            dfs_stmt(child(root, 6));
-            CODE(IR_LABEL, .op=label2);
-        }
+    case HASH_5(IF, LP, Exp, RP, Stmt):
+        dfs_exp_cond(child(root, 2), NULL, label1 = new_label());
+        dfs_stmt(child(root, 4));
+        CODE(IR_LABEL, .op=label1);
         return;
-    case WHILE: // WHILE LP Exp RP Stmt
+    case HASH_7(IF, LP, Exp, RP, Stmt, ELSE, Stmt):
+        dfs_exp_cond(child(root, 2), NULL, label1 = new_label());
+        dfs_stmt(child(root, 4));
+        label2 = new_label();
+        CODE(IR_GOTO, .op=label2);
+        CODE(IR_LABEL, .op=label1);
+        dfs_stmt(child(root, 6));
+        CODE(IR_LABEL, .op=label2);
+        return;
+    case HASH_5(WHILE, LP, Exp, RP, Stmt):
         CODE(IR_LABEL, .op=(label1 = new_label()));
         dfs_exp_cond(child(root, 2), NULL, label2 = new_label());
         dfs_stmt(child(root, 4));

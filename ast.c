@@ -151,15 +151,12 @@ char *get_ast_node_code(struct ast_node *node) {
     return text;
 }
 
-static const int NUM_NT_SYMBOLS = sizeof(nt_symbol_name) / sizeof(char*);
-
 SYMBOL_STRING get_child_symbols_hash(struct ast_node *node) {
     SYMBOL_STRING value = 0;
     struct ast_node *child;
     for (child = node->child; child; child = child->peer) {
         value = value << 6;
-        value += child->symbol < ASSIGNOP ? child->symbol + 1: \
-                 child->symbol - ASSIGNOP + NUM_NT_SYMBOLS + 1;
+        value += get_symbol_number(child->symbol);
     }
     return value;
 }

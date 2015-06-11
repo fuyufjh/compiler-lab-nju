@@ -64,7 +64,7 @@ struct ir_code *do_block_optimize(struct ir_code *head, struct ir_code *tail) {
     struct dag_node *node, *node1, *node2;
     tail->next = NULL;
     for (; code; tail = code, code = code->next) {
-        // accept only these kinds of code
+        // Do different things for different kind of ir-code
         switch (code->kind) {
         case IR_READ:
             if (code->op->modifier == OP_MDF_NONE) {
@@ -78,17 +78,17 @@ struct ir_code *do_block_optimize(struct ir_code *head, struct ir_code *tail) {
         case IR_RETURN:
         case IR_PARAM:
         case IR_WRITE:
-            goto CONTINUE;
+            goto CONTINUE; // modify the operands as they may be mapped
         case IR_DEC:
         case IR_ARG:
         case IR_CALL:
-            continue;
+            continue; // just do nothing
         case IR_ASSIGN:
         case IR_ADD:
         case IR_SUB:
         case IR_MUL:
         case IR_DIV:
-            break;
+            break; // do the following code
         }
         // skip any code with address-access operation
         if (code->op->modifier == OP_MDF_STAR || \
