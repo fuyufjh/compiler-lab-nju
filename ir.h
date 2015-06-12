@@ -73,19 +73,19 @@ struct ir_code {
     struct ir_code *prev, *next;
 } *ir_list, *ir_list_tail;
 
+struct ir_code *add_ir_code(struct ir_code *code);
 struct ir_code *remove_ir_code(struct ir_code *code);
-struct ir_code *insert_ir_code(struct ir_code *place, struct ir_code *code);
 struct ir_code *insert_ir_code_after(struct ir_code *place, struct ir_code *code);
 struct ir_code *insert_ir_code_before(struct ir_code *place, struct ir_code *code);
+
+void print_ir_code(FILE*, struct ir_code *code);
+void print_ir_list(FILE *fp);
 
 struct ir_operand *new_temp_var();
 struct ir_operand *new_variable();
 struct ir_operand *new_label();
 
 char *get_operand_str(struct ir_operand *op);
-void add_ir_code(struct ir_code *code);
-void print_ir_code(FILE*, struct ir_code *code);
-void print_ir_list(FILE *fp);
 struct ir_operand *ir_clean_temp_var(struct ir_operand *op_temp);
 void ir_clean_assign();
 

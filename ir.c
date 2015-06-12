@@ -166,7 +166,7 @@ struct ir_code *insert_ir_code_after(struct ir_code *place, struct ir_code *code
     return code;
 }
 
-void add_ir_code(struct ir_code *code) {
+struct ir_code *add_ir_code(struct ir_code *code) {
     // optimizing begin
     struct ir_operand *src = NULL;
     switch (code->kind) {
@@ -219,6 +219,7 @@ void add_ir_code(struct ir_code *code) {
         code->prev = ir_list_tail;
         ir_list_tail = code;
     }
+    return code;
 }
 
 struct ir_operand *ir_clean_temp_var(struct ir_operand *op_temp) {
