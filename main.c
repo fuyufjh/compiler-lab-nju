@@ -3,6 +3,7 @@
 #include "ast.h"
 #include "translate.h"
 #include "block_opt.h"
+#include "asm_mips.h"
 
 extern void yyrestart(FILE * input_file);
 
@@ -10,17 +11,17 @@ bool no_error = true;
 
 int main(int argc, char* argv[]) {
     if (argc <= 1) {
-        printf("Usage: parser [-p] [-v] [-B] source [out]\n");
+        printf("Usage: parser [-p] [-v] [-B] [-i] source [out]\n");
         printf("  -p  print the abstract syntax tree (AST)\n");
         printf("  -v  verbose mode\n");
         printf("  -B  disable basic block optimizing\n");
+        printf("  -i  generate IR code instead of assemble code\n");
         printf("Copyright: Fu Yu @ NJU\n");
         return -1;
     }
-    int i;
     char *filename = NULL;
     char *out = NULL;
-    for (i=1; i<argc; i++) {
+    for (int i=1; i<argc; i++) {
         if (*argv[i] != '-') {
             if (filename == NULL) filename = argv[i];
             else if (out == NULL) out = argv[i];
@@ -28,6 +29,7 @@ int main(int argc, char* argv[]) {
         else if (strcmp(argv[i], "-p") == 0) flag_print_ast = true;
         else if (strcmp(argv[i], "-v") == 0) flag_verbose = true;
         else if (strcmp(argv[i], "-B") == 0) flag_disable_block_optimize = true;
+        else if (strcmp(argv[i], "-i") == 0) flag_print_ir_code = true;
         else printf("Invalid parameter \"%s\"\n", argv[i]);
     }
     FILE* fp = fopen(filename, "r");
@@ -44,7 +46,7 @@ int main(int argc, char* argv[]) {
 
     // Read source code to memery
     rewind(fp);
-    fseek(fp ,0L ,SEEK_END);
+    fseek(fp, 0L, SEEK_END);
     int fsize = ftell(fp);
     source_code = (char*) malloc(fsize + 1);
     rewind(fp);
@@ -71,7 +73,11 @@ int main(int argc, char* argv[]) {
     } else {
         fp = stdout;
     }
-    print_ir_list(fp);
+    if (flag_print_ir_code) {
+        print_ir_list(fp);
+    } else {
+        asm_mips_translate(fp);
+    }
     fclose(fp);
     free(source_code);
     return 0;

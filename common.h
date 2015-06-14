@@ -18,6 +18,7 @@
 bool flag_print_ast;
 bool flag_verbose;
 bool flag_disable_block_optimize;
+bool flag_print_ir_code;
 
 // Others
 char *to_free;
