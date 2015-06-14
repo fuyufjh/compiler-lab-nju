@@ -2,9 +2,7 @@
 #include "frame.h"
 
 static int n_callee_args;
-
 static struct mips_operand op_imm_minus4 = {MIPS_OP_IMM, .value=-4};
-
 static char buf[128];
 
 struct mips_inst *add_mips_inst(struct mips_inst *inst) {
@@ -16,9 +14,6 @@ struct mips_inst *add_mips_inst(struct mips_inst *inst) {
         inst->prev = asm_list_tail;
         asm_list_tail = inst;
     }
-    ///////debug
-    print_mips_inst(stdout, inst);
-
     return inst;
 }
 
@@ -50,10 +45,6 @@ void asm_cut_function_block(struct ir_code *head, struct ir_code *tail) {
 }
 
 void asm_proc_function_block(struct ir_code *head, struct ir_code *tail) {
-    //debug
-    printf(">>>>> ");
-    print_ir_code(stdout, head);
-
     assert(head && tail && head != tail);
     assert(head->kind == IR_FUNCTION);
     assert(frame == NULL);
@@ -117,10 +108,6 @@ void gen_mips_load(struct ir_operand *op, enum mips_reg reg) {
 }
 
 void asm_proc_ir_code(struct ir_code *ir) {
-    //debug
-    printf(">>>>> ");
-    print_ir_code(stdout, ir);
-
     // special treatment for "*a = b"
     if (ir->kind == IR_ASSIGN && ir->dst->modifier == OP_MDF_STAR) {
         int offset = get_offset(ir->dst->kind, ir->dst->no);
@@ -248,7 +235,6 @@ void asm_proc_ir_code(struct ir_code *ir) {
     case IR_PARAM:
         assert(false);
     }
-
     // store result if needed
     int offset = get_offset(ir->op->kind, ir->op->no);
     if (ir->kind == IR_ASSIGN || ir->kind == IR_ADD || ir->kind == IR_SUB || \
